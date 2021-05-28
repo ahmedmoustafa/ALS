@@ -1,0 +1,325 @@
+---
+title: "ALS Microbiome"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(printr)
+```
+
+# 16S Lesson
+The material in this lesson is based on [the DADA2 tutorial](https://benjjneb.github.io/dada2/tutorial.html)
+
+```{r}
+library(tidyverse)
+library(reshape2)
+library(digest)
+home = "/projects/ALS/data"
+```
+
+# Dataset
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+samples = read_tsv(paste (home, "samples.tsv", sep = "/")) %>%
+  mutate (status = factor(status),
+          pair = factor(pair))
+head(samples)
+```
+
+```{r}
+summary(samples)
+```
+
+
+```{r}
+library(dada2)
+```
+
+```{r}
+path = paste(home, "original", sep = "/")
+list.files(path)
+```
+
+```{r}
+fnFs <- sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
+head(fnFs)
+```
+
+```{r}
+fnRs <- sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
+head(fnRs)
+```
+
+```{r}
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+head(sample.names)
+```
+
+## Quality profile of the forward reads
+
+```{r}
+plotQualityProfile(fnFs[1:2])
+```
+
+## Quality profile of the reverse reads
+
+```{r}
+plotQualityProfile(fnRs[1:2])
+```
+## Filter and trim
+
+```{r}
+# Place filtered files in filtered/ sub-directory
+filtFs <- file.path(home, "filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
+filtRs <- file.path(home, "filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+```
+
+```{r}
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, minLen=100, rm.phix = TRUE, multithread=TRUE) # On Windows set
+head(out)
+```
+
+## Learn the Error Rates
+```{r}
+errF <- learnErrors(filtFs, multithread=TRUE)
+errR <- learnErrors(filtRs, multithread=TRUE)
+
+plotErrors(errF, nominalQ=TRUE)
+```
+
+## Sample Inference
+We are now ready to apply the core sample inference algorithm to the filtered and trimmed sequence data.
+```{r}
+dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+```
+
+```{r}
+dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+```
+
+## Inspecting the returned dada-class object:
+
+```{r}
+dadaFs[[1]]
+```
+
+```{r}
+dadaRs[[1]]
+```
+
+## Merge paired reads
+
+We now merge the forward and reverse reads together to obtain the full denoised sequences. Merging is performed by aligning the denoised forward reads with the reverse-complement of the corresponding denoised reverse reads, and then constructing the merged “contig” sequences. By default, merged sequences are only output if the forward and reverse reads overlap by at least 12 bases, and are identical to each other in the overlap region (but these conditions can be changed via function arguments).
+
+
+```{r}
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+# Inspect the merger data.frame from the first sample
+head(mergers[[1]])
+```
+
+The `mergers` object is a list of data.frames from each sample. Each data.frame contains the merged $sequence, its $abundance, and the indices of the `$forward` and `$reverse` sequence variants that were merged. Paired reads that did not exactly overlap were removed by `mergePairs`, further reducing spurious output.
+
+## Construct sequence table
+We can now construct an amplicon sequence variant table (ASV) table, a higher-resolution version of the OTU table produced by traditional methods.
+
+```{r}
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+```
+
+```{r}
+# Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtab)))
+```
+
+The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants. This table contains 293 ASVs, and the lengths of our merged sequences all fall within the expected range for this V4 amplicon.
+
+*Considerations for your own data:* Sequences that are much longer or shorter than expected may be the result of non-specific priming. You can remove non-target-length sequences from your sequence table (eg. `seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 250:256]`). This is analogous to “cutting a band” in-silico to get amplicons of the targeted length.
+
+## Remove chimeras
+The core `dada` method corrects substitution and indel errors, but chimeras remain. Fortunately, the accuracy of sequence variants after denoising makes identifying chimeric ASVs simpler than when dealing with fuzzy OTUs. Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant “parent” sequences.
+
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+```
+
+```{r}
+sum(seqtab.nochim)/sum(seqtab)
+```
+
+The frequency of chimeric sequences varies substantially from dataset to dataset, and depends on on factors including experimental procedures and sample complexity. Here chimeras make up about 21% of the merged sequence variants, but when we account for the abundances of those variants we see they account for only about 4% of the merged sequence reads.
+
+*Considerations for your own data:* Most of your reads should remain after chimera removal (it is not uncommon for a majority of sequence variants to be removed though). If most of your reads were removed as chimeric, upstream processing may need to be revisited. In almost all cases this is caused by primer sequences with ambiguous nucleotides that were not removed prior to beginning the DADA2 pipeline.
+
+## Track reads through the pipeline
+As a final check of our progress, we’ll look at the number of reads that made it through each step in the pipeline:
+
+```{r}
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)
+```
+
+Looks good! We kept the majority of our raw reads, and there is no over-large drop associated with any single step.
+
+*Considerations for your own data:* This is a great place to do a last **sanity check**. Outside of filtering, there should no step in which a majority of reads are lost. If a majority of reads failed to merge, you may need to revisit the `truncLen` parameter used in the filtering step and make sure that the truncated reads span your amplicon. If a majority of reads were removed as chimeric, you may need to revisit the removal of primers, as the ambiguous nucleotides in unremoved primers interfere with chimera identification.
+
+# Taxonomic Classification
+
+## Assign taxonomy
+
+It is common at this point, especially in 16S/18S/ITS amplicon sequencing, to assign taxonomy to the sequence variants. The DADA2 package provides a native implementation of the [naive Bayesian classifier method](http://www.ncbi.nlm.nih.gov/pubmed/17586664) for this purpose. The `assignTaxonomy` function takes as input a set of sequences to be classified and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence.
+
+We maintain [formatted training fastas for the RDP training set, GreenGenes clustered at 97% identity, and the Silva reference database](https://benjjneb.github.io/dada2/training.html), and additional trainings fastas suitable for protists and certain specific environments have been contributed. For fungal taxonomy, the General Fasta release files from the [UNITE ITS database](https://unite.ut.ee/repository.php) can be used as is. To follow along, download the `silva_nr_v138_train_set.fa.gz` file, and place it in the directory with the fastq files.
+
+```{r}
+silva_home = paste (home, "silva", sep = "/")
+silva_home
+```
+
+
+```{r}
+taxa <- assignTaxonomy(seqtab.nochim, paste(silva_home, "silva_nr99_v138_train_set.fa.gz", sep = "/"), multithread=TRUE)
+head(taxa)
+```
+
+*Extensions*: The dada2 package also implements a method to make [species level assignments based on exact matching](https://benjjneb.github.io/dada2/assign.html#species-assignment) between ASVs and sequenced reference strains. Recent analysis suggests that [exact matching (or 100% identity) is the only appropriate way to assign species to 16S gene fragments](https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/bty113/4913809). Currently, [species-assignment training fastas are available for the Silva and RDP 16S databases](https://benjjneb.github.io/dada2/training.html). To follow the optional species addition step, download the `silva_species_assignment_v138.fa.gz` file, and place it in the directory with the fastq files.
+
+```{r}
+taxa <- addSpecies(taxa, paste(silva_home, "silva_species_assignment_v138.fa.gz", sep = "/"))
+head(taxa)
+```
+
+
+
+```{r}
+md5 = lapply(colnames(seqtab.nochim), digest)
+colnames(seqtab.nochim) = md5
+
+otus = as.matrix(seqtab.nochim)
+colnames(otus) = md5
+otus[1:5, 1:5]
+```
+
+
+
+```{r}
+rownames(taxa) = lapply(rownames(taxa), digest)
+head(taxa)
+```
+
+
+
+Let’s inspect the taxonomic assignments:
+
+```{r}
+taxa.print <- taxa # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+
+Unsurprisingly, the Bacteroidetes are well represented among the most abundant taxa in these fecal samples. Few species assignments were made, both because it is often not possible to make unambiguous species assignments from subsegments of the 16S gene, and because there is surprisingly little coverage of the indigenous mouse gut microbiota in reference databases.
+
+*Considerations for your own data:* If your reads do not seem to be appropriately assigned, for example lots of your bacterial 16S sequences are being assigned as `Eukaryota NA NA NA NA NA`, your reads may be in the opposite orientation as the reference database. Tell dada2 to try the reverse-complement orientation with `assignTaxonomy(..., tryRC=TRUE)` and see if this fixes the assignments. If using DECIPHER for taxonomy, try `IdTaxa (..., strand="both")`.
+
+# Handoff to phyloseq
+
+The phyloseq R package is a powerful framework for further analysis of microbiome data. We now demonstrate how to straightforwardly import the tables produced by the DADA2 pipeline into phyloseq. We’ll also add the small amount of metadata we have – the samples are named by the gender (G), mouse subject number (X) and the day post-weaning (Y) it was sampled (eg. GXDY).
+
+
+```{r}
+library("phyloseq")
+```
+
+
+## Import into phyloseq:
+We can construct a simple sample data.frame from the information encoded in the filenames. Usually this step would instead involve reading the sample data in from a file.
+
+```{r}
+samples = as.data.frame(samples)
+row.names(samples) = samples$sample
+samples
+```
+
+We now construct a phyloseq object directly from the dada2 outputs.
+
+```{r}
+ps = phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),  sample_data(samples),  tax_table(taxa))
+ps
+```
+
+We are now ready to use phyloseq!
+
+Visualize alpha-diversity:
+
+```{r}
+plot_richness(ps, x="status", measures=c("Shannon", "Simpson"), color = "pair")
+```
+
+No obvious systematic difference in alpha-diversity between early and late samples.
+
+
+```{r}
+ps_rank = transform_sample_counts(ps, threshrankfun(50))
+ps_log = transform_sample_counts(ps, log)
+ps_norm = transform_sample_counts(ps, function(x) x / sum(x))
+```
+
+
+Ordinate:
+Transform data to proportions as appropriate for Bray-Curtis distances
+```{r}
+ord.nmds.bray <- ordinate(ps_norm, method="NMDS", distance="bray")
+plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_point(size = 3)
+```
+
+Ordination picks out a clear separation between the early and late samples.
+
+## Bar plot
+
+```{r}
+ps
+ps_norm  = transform_sample_counts(ps, function(x) x / sum(x) )
+ps_filtered = filter_taxa(ps_norm, function(x) mean(x) > 1e-3, prune = TRUE)
+ps_filtered
+```
+
+```{r}
+plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
+```
+
+
+```{r}
+plot_bar(ps_norm, x="status", fill="Phylum")
+```
+
+Normalize number of reads in each sample using median sequencing depth.
+
+```{r}
+total = median(sample_sums(ps))
+standf = function(x, t=total) round(t * (x / sum(x)))
+ps2 = transform_sample_counts(ps, standf)
+ps2
+```
+
+
+```{r}
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+
+plot_bar(ps.top20, x="status", fill="Phylum")
+```
+
