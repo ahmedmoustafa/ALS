@@ -7,10 +7,10 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
 
 </div>
 
-<div style="text-align: right">
+<div align="right">
 
-<sub><sup>*Stephen Hawking*. Photo Credit: [NASA/Paul E.
-Alers](https://flic.kr/p/6h1t6B).</sup></sub>
+<small>*Stephen Hawking*. Photo Credit: [NASA/Paul E.
+Alers](https://flic.kr/p/6h1t6B).</small>
 
 </div>
 
@@ -702,42 +702,42 @@ ord.nmds.bray <- ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1924555 
-    ## Run 1 stress 0.1712941 
+    ## Run 1 stress 0.2113415 
+    ## Run 2 stress 0.1923341 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1763611  max resid 0.6370782 
-    ## Run 2 stress 0.206976 
-    ## Run 3 stress 0.2053612 
-    ## Run 4 stress 0.1823573 
-    ## Run 5 stress 0.3719178 
-    ## Run 6 stress 0.1828267 
-    ## Run 7 stress 0.1712944 
-    ## ... Procrustes: rmse 0.0003426221  max resid 0.001188556 
+    ## ... Procrustes: rmse 0.1307818  max resid 0.3105953 
+    ## Run 3 stress 0.182357 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.1664538  max resid 0.375834 
+    ## Run 4 stress 0.171294 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.09671362  max resid 0.2768075 
+    ## Run 5 stress 0.1712941 
+    ## ... Procrustes: rmse 0.0004004293  max resid 0.001386297 
     ## ... Similar to previous best
-    ## Run 8 stress 0.2611078 
-    ## Run 9 stress 0.1917947 
-    ## Run 10 stress 0.1712964 
-    ## ... Procrustes: rmse 0.001027576  max resid 0.003501091 
+    ## Run 6 stress 0.1730987 
+    ## Run 7 stress 0.1924555 
+    ## Run 8 stress 0.1712943 
+    ## ... Procrustes: rmse 0.0004997427  max resid 0.001731287 
     ## ... Similar to previous best
-    ## Run 11 stress 0.1712946 
-    ## ... Procrustes: rmse 0.0004138362  max resid 0.001434382 
+    ## Run 9 stress 0.2001594 
+    ## Run 10 stress 0.1712945 
+    ## ... Procrustes: rmse 0.0006229447  max resid 0.002157385 
     ## ... Similar to previous best
-    ## Run 12 stress 0.1712942 
-    ## ... Procrustes: rmse 0.0006780213  max resid 0.00234799 
+    ## Run 11 stress 0.1838543 
+    ## Run 12 stress 0.2041785 
+    ## Run 13 stress 0.2037715 
+    ## Run 14 stress 0.1850295 
+    ## Run 15 stress 0.1976837 
+    ## Run 16 stress 0.1917947 
+    ## Run 17 stress 0.3719197 
+    ## Run 18 stress 0.1712953 
+    ## ... Procrustes: rmse 0.0008758067  max resid 0.003023242 
     ## ... Similar to previous best
-    ## Run 13 stress 0.1712942 
-    ## ... Procrustes: rmse 0.0001402326  max resid 0.0004836225 
+    ## Run 19 stress 0.1712942 
+    ## ... Procrustes: rmse 0.0003932372  max resid 0.001359396 
     ## ... Similar to previous best
-    ## Run 14 stress 0.1712943 
-    ## ... Procrustes: rmse 0.000753901  max resid 0.0026086 
-    ## ... Similar to previous best
-    ## Run 15 stress 0.1846161 
-    ## Run 16 stress 0.1966041 
-    ## Run 17 stress 0.175263 
-    ## Run 18 stress 0.1712941 
-    ## ... Procrustes: rmse 0.000649443  max resid 0.002249088 
-    ## ... Similar to previous best
-    ## Run 19 stress 0.1801897 
-    ## Run 20 stress 0.1828268 
+    ## Run 20 stress 0.1752297 
     ## *** Solution reached
 
 ``` r

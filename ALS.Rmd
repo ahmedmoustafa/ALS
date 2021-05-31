@@ -16,7 +16,7 @@ library(printr)
 ![Stephen Hawking](images/stephen_hawking.png)
 </div>
 
-<div style="text-align: right"><sub><sup>*Stephen Hawking*. Photo Credit: [NASA/Paul E. Alers](https://flic.kr/p/6h1t6B).</sup></sub></div>
+<div align="right"><small>*Stephen Hawking*. Photo Credit: [NASA/Paul E. Alers](https://flic.kr/p/6h1t6B).</small></div>
 
 Amyotrophic lateral sclerosis ([ALS](https://en.wikipedia.org/wiki/Amyotrophic_lateral_sclerosis)) is a neurodegenerative neuromuscular disease that results in the progressive loss of motor neurons that control voluntary muscles.
 
