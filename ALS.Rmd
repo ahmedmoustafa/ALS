@@ -1,5 +1,5 @@
 ---
-title: "ALS Microbiome"
+title: "Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA"
 output: github_document
 ---
 
@@ -12,7 +12,16 @@ library(tidyverse)
 library(printr)
 ```
 
-# 16S Lesson
+<div align="center">
+![Stephen Hawking](images/stephen_hawking.png)
+</div>
+
+<div style="text-align: right"><sub><sup>*Stephen Hawking*. Photo Credit: [NASA/Paul E. Alers](https://flic.kr/p/6h1t6B).</sup></sub></div>
+
+Amyotrophic lateral sclerosis ([ALS](https://en.wikipedia.org/wiki/Amyotrophic_lateral_sclerosis)) is a neurodegenerative neuromuscular disease that results in the progressive loss of motor neurons that control voluntary muscles.
+
+About 20 genes have been shown to be associated with ALS, most importantly [C9orf72](https://en.wikipedia.org/wiki/C9orf72), which accounts for about 40% of the cases. In addition to genetic risk, other environmental factors such as smoking, physical activitiy, represent potential 
+
 The material in this lesson is based on [the DADA2 tutorial](https://benjjneb.github.io/dada2/tutorial.html)
 
 ```{r}
