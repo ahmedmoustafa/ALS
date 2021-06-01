@@ -284,7 +284,8 @@ plotQualityProfile(reverse.original[1:2])
 
 As expected, the forward reads are typically of higher quality for most
 of the read length, but for the reverse read, the quality drops about
-half-way through the read length (\~ starting from the 100th nucleotide)
+half-way through the read length (starting approximately from the 100th
+nucleotide)
 
 ### Filtering and Trimming
 
@@ -308,9 +309,9 @@ Now filter and trim using
 ``` r
 out = filterAndTrim(forward.original, forward.filtered, 
                     reverse.original, reverse.filtered,
-                    minLen = 150,
-                    multithread = TRUE)
-out
+                    minLen = 150, # Pretty stringent but to show difference between the in and out
+                    multithread = TRUE) # In case of Windows OS, multithread should be FALSE (which is the default)
+head(out)
 ```
 
 |                         | reads.in | reads.out |
@@ -321,18 +322,6 @@ out
 | SRR10153502\_1.fastq.gz |    10482 |      8965 |
 | SRR10153503\_1.fastq.gz |    13782 |     11345 |
 | SRR10153504\_1.fastq.gz |    14467 |     11425 |
-| SRR10153505\_1.fastq.gz |    12705 |     11111 |
-| SRR10153506\_1.fastq.gz |    13557 |     12067 |
-| SRR10153507\_1.fastq.gz |    11403 |      9883 |
-| SRR10153508\_1.fastq.gz |    11681 |      9563 |
-| SRR10153509\_1.fastq.gz |    14382 |     10508 |
-| SRR10153510\_1.fastq.gz |    13186 |     11592 |
-| SRR10153511\_1.fastq.gz |    10621 |      8911 |
-| SRR10153512\_1.fastq.gz |    12542 |     10840 |
-| SRR10153513\_1.fastq.gz |    11066 |      9624 |
-| SRR10153514\_1.fastq.gz |    11063 |      9088 |
-| SRR10153515\_1.fastq.gz |    12525 |     10429 |
-| SRR10153573\_1.fastq.gz |    14046 |     12018 |
 
 ## Learn the Error Rates
 
@@ -858,43 +847,38 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.18341 
+    ## Run 1 stress 0.1679988 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1496154  max resid 0.5094789 
-    ## Run 2 stress 0.1766462 
+    ## ... Procrustes: rmse 0.1812005  max resid 0.6581558 
+    ## Run 2 stress 0.1677132 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1659714  max resid 0.3196243 
-    ## Run 3 stress 0.1693974 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.08497683  max resid 0.2246713 
-    ## Run 4 stress 0.1885589 
-    ## Run 5 stress 0.1679987 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.06183084  max resid 0.183515 
-    ## Run 6 stress 0.1889447 
-    ## Run 7 stress 0.1693584 
-    ## Run 8 stress 0.1693584 
-    ## Run 9 stress 0.1867397 
-    ## Run 10 stress 0.1988228 
-    ## Run 11 stress 0.2007892 
-    ## Run 12 stress 0.1677133 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.0184539  max resid 0.06054896 
-    ## Run 13 stress 0.1741992 
-    ## Run 14 stress 0.1945467 
-    ## Run 15 stress 0.1808857 
-    ## Run 16 stress 0.1677133 
-    ## ... New best solution
-    ## ... Procrustes: rmse 1.858865e-05  max resid 5.650673e-05 
+    ## ... Procrustes: rmse 0.01859214  max resid 0.06115439 
+    ## Run 3 stress 0.1797132 
+    ## Run 4 stress 0.1677134 
+    ## ... Procrustes: rmse 0.0004590098  max resid 0.00161085 
     ## ... Similar to previous best
-    ## Run 17 stress 0.1978151 
-    ## Run 18 stress 0.1677136 
-    ## ... Procrustes: rmse 0.0001884901  max resid 0.0006609735 
+    ## Run 5 stress 0.1741992 
+    ## Run 6 stress 0.186576 
+    ## Run 7 stress 0.1677132 
+    ## ... Procrustes: rmse 0.0002450044  max resid 0.0008590723 
     ## ... Similar to previous best
-    ## Run 19 stress 0.1677134 
-    ## ... Procrustes: rmse 0.0006078924  max resid 0.002132427 
+    ## Run 8 stress 0.1677136 
+    ## ... Procrustes: rmse 0.0003942863  max resid 0.001382673 
     ## ... Similar to previous best
-    ## Run 20 stress 0.1741992 
+    ## Run 9 stress 0.1693584 
+    ## Run 10 stress 0.1693976 
+    ## Run 11 stress 0.188559 
+    ## Run 12 stress 0.1828827 
+    ## Run 13 stress 0.1990286 
+    ## Run 14 stress 0.1784212 
+    ## Run 15 stress 0.1797133 
+    ## Run 16 stress 0.1889447 
+    ## Run 17 stress 0.1741992 
+    ## Run 18 stress 0.1892393 
+    ## Run 19 stress 0.2066747 
+    ## Run 20 stress 0.1677135 
+    ## ... Procrustes: rmse 0.0004973478  max resid 0.001745415 
+    ## ... Similar to previous best
     ## *** Solution reached
 
 ``` r

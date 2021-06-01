@@ -131,7 +131,7 @@ Then the quality profile of *reverse* reads of the same first two samples above
 plotQualityProfile(reverse.original[1:2])
 ```
 
-As expected, the forward reads are typically of higher quality for most of the read length, but for the reverse read, the quality drops about half-way through the read length (~ starting from the 100th nucleotide)
+As expected, the forward reads are typically of higher quality for most of the read length, but for the reverse read, the quality drops about half-way through the read length (starting approximately from the 100th nucleotide)
 
 ### Filtering and Trimming
 
@@ -150,9 +150,9 @@ Now filter and trim using [`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filte
 ```{r}
 out = filterAndTrim(forward.original, forward.filtered, 
                     reverse.original, reverse.filtered,
-                    minLen = 150,
-                    multithread = TRUE)
-out
+                    minLen = 150, # Pretty stringent but to show difference between the in and out
+                    multithread = TRUE) # In case of Windows OS, multithread should be FALSE (which is the default)
+head(out)
 ```
 
 ## Learn the Error Rates
