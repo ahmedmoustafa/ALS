@@ -1,6 +1,31 @@
 Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
 ================
 
+-   [Introduction](#introduction)
+-   [Setting up](#setting-up)
+    -   [Direcotry Structure](#direcotry-structure)
+    -   [Installing and Loading
+        Packages](#installing-and-loading-packages)
+    -   [Loading Metadata and Sequence
+        Data](#loading-metadata-and-sequence-data)
+-   [Quality Control](#quality-control)
+    -   [Quality Profile](#quality-profile)
+    -   [Filtering and Trimming](#filtering-and-trimming)
+-   [Learn the Error Rates](#learn-the-error-rates)
+-   [Sample Inference](#sample-inference)
+-   [Inspecting the returned dada-class
+    object:](#inspecting-the-returned-dada-class-object)
+-   [Merge paired reads](#merge-paired-reads)
+-   [Construct sequence table](#construct-sequence-table)
+-   [Remove chimeras](#remove-chimeras)
+-   [Track reads through the
+    pipeline](#track-reads-through-the-pipeline)
+-   [Taxonomic Classification](#taxonomic-classification)
+    -   [Assign taxonomy](#assign-taxonomy)
+-   [Handoff to phyloseq](#handoff-to-phyloseq)
+    -   [Import into phyloseq:](#import-into-phyloseq)
+    -   [Bar plot](#bar-plot)
+
 <div align="center">
 
 ![Stephen Hawking](images/stephen_hawking.png)
@@ -13,6 +38,8 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
 Alers](https://flic.kr/p/6h1t6B).</small>
 
 </div>
+
+## Introduction
 
 Amyotrophic lateral sclerosis
 ([ALS](https://en.wikipedia.org/wiki/Amyotrophic_lateral_sclerosis)) is
@@ -52,7 +79,9 @@ and [454](https://en.wikipedia.org/wiki/454_Life_Sciences)). Most of the
 subsequent steps are based on the [DADA2
 tutorial](https://benjjneb.github.io/dada2/tutorial.html).
 
-## Direcotry Structure
+## Setting up
+
+### Direcotry Structure
 
 In the working directory, there is a file called `samples.tsv` with a
 list of the samples and the status (`ALS` vs `Control`) of each sample.
@@ -61,48 +90,72 @@ under `data/original/`. There is also the `data/silva/` folder with the
 [SILVA](https://www.arb-silva.de/) database for taxonomic
 classification.
 
-``` r
-library(tidyverse)
-library(reshape2)
-library(digest)
-home = "/projects/ALS/data"
-```
+### Installing and Loading Packages
 
-# Dataset
-
-``` r
-samples = read_tsv("data/samples.tsv", col_types = 'cff')
-head(samples)
-```
-
-| sample      | status  | pair |
-|:------------|:--------|:-----|
-| SRR10153501 | ALS     | 1    |
-| SRR10153511 | Control | 1    |
-| SRR10153503 | ALS     | 2    |
-| SRR10153499 | Control | 2    |
-| SRR10153500 | ALS     | 3    |
-| SRR10153504 | Control | 3    |
+The main package required for this lesson is
+[`dada2`](https://doi.org/doi:10.18129/B9.bioc.dada2). If it is not
+installed already, it can installed through
+[`BiocManager`](https://cran.r-project.org/web/packages/BiocManager/vignettes/BiocManager.html)
+as follows:
 
 ``` r
-summary(samples)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("dada2")
 ```
 
-|     | sample           | status    | pair      |
-|:----|:-----------------|:----------|:----------|
-|     | Length:18        | ALS :9    | 1 :2      |
-|     | Class :character | Control:9 | 2 :2      |
-|     | Mode :character  | NA        | 3 :2      |
-|     | NA               | NA        | 5 :2      |
-|     | NA               | NA        | 6 :2      |
-|     | NA               | NA        | 7 :2      |
-|     | NA               | NA        | (Other):6 |
+Additional, [`tidyverse`](https://www.tidyverse.org/) will be required
+for data reading, handling, and plotting. Finally,
+[`digest`](https://cran.r-project.org/web/packages/digest/index.html)
+will be required for only prettify the names of the operational
+taxonomic units (OTUs). Both packages can be installed from the The
+Comprehensive R Archive Network (CRAN) repository as follows:
+
+``` r
+install.packages(c("tidyverse", "digest"))
+```
+
+After all the required packages are successfully installed, typically
+happens once per `R` installation, let us **load** these package in the
+current `R` session (workspace):
 
 ``` r
 library(dada2)
 ```
 
     ## Loading required package: Rcpp
+
+``` r
+library(tidyverse)
+```
+
+    ## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──
+
+    ## ✓ ggplot2 3.3.3     ✓ purrr   0.3.4
+    ## ✓ tibble  3.1.2     ✓ dplyr   1.0.6
+    ## ✓ tidyr   1.1.3     ✓ stringr 1.4.0
+    ## ✓ readr   1.4.0     ✓ forcats 0.5.1
+
+    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+    ## x dplyr::filter() masks stats::filter()
+    ## x dplyr::lag()    masks stats::lag()
+
+``` r
+library(digest)
+```
+
+### Loading Metadata and Sequence Data
+
+``` r
+samples = read_tsv("data/samples.tsv", col_types = 'cff')
+glimpse(samples)
+```
+
+    ## Rows: 18
+    ## Columns: 3
+    ## $ sample <chr> "SRR10153501", "SRR10153511", "SRR10153503", "SRR10153499", "SR…
+    ## $ status <fct> ALS, Control, ALS, Control, ALS, Control, ALS, Control, ALS, Co…
+    ## $ pair   <fct> 1, 1, 2, 2, 3, 3, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10
 
 ``` r
 path = "data/original"
@@ -123,7 +176,7 @@ list.files(path)
     ## [34] "SRR10153515_2.fastq.gz" "SRR10153573_1.fastq.gz" "SRR10153573_2.fastq.gz"
 
 ``` r
-fnFs <- sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
+fnFs = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
 head(fnFs)
 ```
 
@@ -135,7 +188,7 @@ head(fnFs)
     ## [6] "data/original/SRR10153504_1.fastq.gz"
 
 ``` r
-fnRs <- sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
+fnRs = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
 head(fnRs)
 ```
 
@@ -146,15 +199,28 @@ head(fnRs)
     ## [5] "data/original/SRR10153503_2.fastq.gz"
     ## [6] "data/original/SRR10153504_2.fastq.gz"
 
+The sample name is extracted from the FASTQ file name using
+[`strsplit`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/strsplit)
+by searching and taking the part the file name before the underscore
+`_`. The extracted sample name should match the `sample` column (first
+column) in the metadata loaded above. With
+[`sapply`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/lapply),
+the extraction (`strsplit`) is applied on the list (vector) of names in
+`fnFs`.
+
 ``` r
-sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+sample.names = sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 head(sample.names)
 ```
 
     ## [1] "SRR10153499" "SRR10153500" "SRR10153501" "SRR10153502" "SRR10153503"
     ## [6] "SRR10153504"
 
-## Quality profile of the forward reads
+## Quality Control
+
+### Quality Profile
+
+#### Forward Reads
 
 ``` r
 plotQualityProfile(fnFs[1:2])
@@ -162,25 +228,26 @@ plotQualityProfile(fnFs[1:2])
 
 ![](ALS_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
-## Quality profile of the reverse reads
+#### Reverse Reads
 
 ``` r
 plotQualityProfile(fnRs[1:2])
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-10-1.png)<!-- --> \#\# Filter and
-trim
+![](ALS_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+
+### Filtering and Trimming
 
 ``` r
 # Place filtered files in filtered/ sub-directory
-filtFs <- file.path("data/filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
-filtRs <- file.path("data/filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
-names(filtFs) <- sample.names
-names(filtRs) <- sample.names
+filtFs = file.path("data/filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
+filtRs = file.path("data/filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
+names(filtFs) = sample.names
+names(filtRs) = sample.names
 ```
 
 ``` r
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, minLen=100, rm.phix = TRUE, multithread=TRUE) # On Windows set
+out = filterAndTrim(fnFs, filtFs, fnRs, filtRs, minLen=100, rm.phix = TRUE, multithread=TRUE) # On Windows set
 head(out)
 ```
 
@@ -196,13 +263,13 @@ head(out)
 ## Learn the Error Rates
 
 ``` r
-errF <- learnErrors(filtFs, multithread=TRUE)
+errF = learnErrors(filtFs, multithread=TRUE)
 ```
 
     ## 53415457 total bases in 227501 reads from 18 samples will be used for learning the error rates.
 
 ``` r
-errR <- learnErrors(filtRs, multithread=TRUE)
+errR = learnErrors(filtRs, multithread=TRUE)
 ```
 
     ## 44820958 total bases in 227501 reads from 18 samples will be used for learning the error rates.
@@ -223,7 +290,7 @@ We are now ready to apply the core sample inference algorithm to the
 filtered and trimmed sequence data.
 
 ``` r
-dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+dadaFs = dada(filtFs, err=errF, multithread=TRUE)
 ```
 
     ## Sample 1 - 11688 reads in 5168 unique sequences.
@@ -246,7 +313,7 @@ dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
     ## Sample 18 - 14046 reads in 7130 unique sequences.
 
 ``` r
-dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+dadaRs = dada(filtRs, err=errR, multithread=TRUE)
 ```
 
     ## Sample 1 - 11688 reads in 7403 unique sequences.
@@ -298,7 +365,7 @@ the overlap region (but these conditions can be changed via function
 arguments).
 
 ``` r
-mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+mergers = mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 ```
 
     ## 9425 paired-reads (in 33 unique pairings) successfully merged out of 11337 (in 132 pairings) input.
@@ -378,7 +445,7 @@ higher-resolution version of the OTU table produced by traditional
 methods.
 
 ``` r
-seqtab <- makeSequenceTable(mergers)
+seqtab = makeSequenceTable(mergers)
 ```
 
     ## Duplicate sequences detected and merged.
@@ -413,7 +480,7 @@ amplicon.
 *Considerations for your own data:* Sequences that are much longer or
 shorter than expected may be the result of non-specific priming. You can
 remove non-target-length sequences from your sequence table (eg.
-`seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 250:256]`). This is
+`seqtab2 = seqtab[,nchar(colnames(seqtab)) %in% 250:256]`). This is
 analogous to “cutting a band” in-silico to get amplicons of the targeted
 length.
 
@@ -427,7 +494,7 @@ reconstructed by combining a left-segment and a right-segment from two
 more abundant “parent” sequences.
 
 ``` r
-seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+seqtab.nochim = removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 ```
 
     ## Identified 21 bimeras out of 293 input sequences.
@@ -464,8 +531,8 @@ As a final check of our progress, we’ll look at the number of reads that
 made it through each step in the pipeline:
 
 ``` r
-getN <- function(x) sum(getUniques(x))
-track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+getN = function(x) sum(getUniques(x))
+track = cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
 ```
 
     ## Duplicate sequences detected and merged.
@@ -478,8 +545,8 @@ track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, 
 
 ``` r
 # If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
-colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
-rownames(track) <- sample.names
+colnames(track) = c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) = sample.names
 head(track)
 ```
 
@@ -528,14 +595,7 @@ follow along, download the `silva_nr_v138_train_set.fa.gz` file, and
 place it in the directory with the fastq files.
 
 ``` r
-silva_home = paste (home, "silva", sep = "/")
-silva_home
-```
-
-    ## [1] "/projects/ALS/data/silva"
-
-``` r
-taxa <- assignTaxonomy(seqtab.nochim, paste(silva_home, "silva_nr99_v138_train_set.fa.gz", sep = "/"), multithread=TRUE)
+taxa = assignTaxonomy(seqtab.nochim, "data/silva/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
 head(taxa)
 ```
 
@@ -563,7 +623,7 @@ the optional species addition step, download the
 directory with the fastq files.
 
 ``` r
-taxa <- addSpecies(taxa, paste(silva_home, "silva_species_assignment_v138.fa.gz", sep = "/"))
+taxa = addSpecies(taxa, "data/silva/silva_species_assignment_v138.fa.gz")
 head(taxa)
 ```
 
@@ -607,8 +667,8 @@ head(taxa)
 Let’s inspect the taxonomic assignments:
 
 ``` r
-taxa.print <- taxa # Removing sequence rownames for display only
-rownames(taxa.print) <- NULL
+taxa.print = taxa # Removing sequence rownames for display only
+rownames(taxa.print) = NULL
 head(taxa.print)
 ```
 
@@ -709,7 +769,7 @@ plot_richness(ps, x="status", measures=c("Shannon", "Simpson"), color = "pair")
     ## 
     ## We recommended that you find the un-trimmed data and retry.
 
-![](ALS_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
 
 No obvious systematic difference in alpha-diversity between early and
 late samples.
@@ -724,47 +784,43 @@ Ordinate: Transform data to proportions as appropriate for Bray-Curtis
 distances
 
 ``` r
-ord.nmds.bray <- ordinate(ps_norm, method="NMDS", distance="bray")
+ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1924555 
-    ## Run 1 stress 0.1730986 
+    ## Run 1 stress 0.1754283 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1769408  max resid 0.6363982 
-    ## Run 2 stress 0.1999347 
-    ## Run 3 stress 0.1828267 
-    ## Run 4 stress 0.1712941 
+    ## ... Procrustes: rmse 0.1812286  max resid 0.6364827 
+    ## Run 2 stress 0.1907233 
+    ## Run 3 stress 0.2018923 
+    ## Run 4 stress 0.1823568 
+    ## Run 5 stress 0.171294 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.02657351  max resid 0.0880612 
-    ## Run 5 stress 0.1817494 
-    ## Run 6 stress 0.2703823 
-    ## Run 7 stress 0.1857406 
-    ## Run 8 stress 0.1712947 
-    ## ... Procrustes: rmse 0.0004742894  max resid 0.001636043 
+    ## ... Procrustes: rmse 0.05056283  max resid 0.1543138 
+    ## Run 6 stress 0.1900726 
+    ## Run 7 stress 0.1923341 
+    ## Run 8 stress 0.1823571 
+    ## Run 9 stress 0.1838543 
+    ## Run 10 stress 0.1752297 
+    ## Run 11 stress 0.1838544 
+    ## Run 12 stress 0.2069762 
+    ## Run 13 stress 0.1855919 
+    ## Run 14 stress 0.1712944 
+    ## ... Procrustes: rmse 0.0007273627  max resid 0.002520138 
     ## ... Similar to previous best
-    ## Run 9 stress 0.2025152 
-    ## Run 10 stress 0.2069751 
-    ## Run 11 stress 0.1801896 
-    ## Run 12 stress 0.1712945 
-    ## ... Procrustes: rmse 0.0008862136  max resid 0.003063619 
-    ## ... Similar to previous best
-    ## Run 13 stress 0.2030592 
-    ## Run 14 stress 0.2641754 
-    ## Run 15 stress 0.1991177 
-    ## Run 16 stress 0.1752299 
-    ## Run 17 stress 0.1900726 
-    ## Run 18 stress 0.184616 
-    ## Run 19 stress 0.1712948 
-    ## ... Procrustes: rmse 0.001098737  max resid 0.003806434 
-    ## ... Similar to previous best
-    ## Run 20 stress 0.1730144 
+    ## Run 15 stress 0.175428 
+    ## Run 16 stress 0.2934909 
+    ## Run 17 stress 0.1752297 
+    ## Run 18 stress 0.1855919 
+    ## Run 19 stress 0.2048112 
+    ## Run 20 stress 0.1817494 
     ## *** Solution reached
 
 ``` r
 plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_point(size = 3)
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
 
 Ordination picks out a clear separation between the early and late
 samples.
@@ -795,13 +851,13 @@ ps_filtered
 plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
 
 ``` r
 plot_bar(ps_norm, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 Normalize number of reads in each sample using median sequencing depth.
 
@@ -818,11 +874,11 @@ ps2
     ## tax_table()   Taxonomy Table:    [ 272 taxa by 7 taxonomic ranks ]
 
 ``` r
-top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
-ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
-ps.top20 <- prune_taxa(top20, ps.top20)
+top20 = names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 = transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 = prune_taxa(top20, ps.top20)
 
 plot_bar(ps.top20, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
