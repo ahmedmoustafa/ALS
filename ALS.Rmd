@@ -58,22 +58,34 @@ library(tidyverse)
 library(digest)
 ```
 
-### Loading Metadata and Sequence Data
+### Loading Meta and Sequence Data
+
+In loading the samples information (metadata), `read_tsv`'s parameter `col_types` takes the `cff` to indicate that the first column in a *character* (string) but the second and third columns are *factor* (categorical) - for more on data types in R, see the episode on [Data Types and Structures](https://swcarpentry.github.io/r-novice-inflammation/13-supp-data-structures/)
 
 ```{r}
 samples = read_tsv("data/samples.tsv", col_types = 'cff')
 glimpse(samples)
 ```
 
+`glimpse` shows that there are 18 rows (samples) and the three columns are `sample`, `status`, and `pair` were loaded successfully as `chr`, `fct`, and `fct`, respectively.
+
+Now let's start processing the FASTQ files. First, we will list all the files in the `original` subfolder.
+
 ```{r}
 path = "data/original"
 list.files(path)
 ```
 
+The above list will be split into forward and reverse reads, according to the FASTQ file name where file names that end with `1.fastq.gz` are the forward reads and file names that end with `2.fastq.gz` are the reverse reads.
+
+**The forward reads:**
+
 ```{r}
 fnFs = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
 head(fnFs)
 ```
+
+**The reverse reads:**
 
 ```{r}
 fnRs = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
@@ -88,6 +100,8 @@ head(sample.names)
 ```
 
 ## Quality Control
+
+Now it comes to the nuts and bolts of using **DADA2** to assess and control the quality of the sequence reads.
 
 ### Quality Profile
 

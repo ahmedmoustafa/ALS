@@ -6,8 +6,8 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
     -   [Direcotry Structure](#direcotry-structure)
     -   [Installing and Loading
         Packages](#installing-and-loading-packages)
-    -   [Loading Metadata and Sequence
-        Data](#loading-metadata-and-sequence-data)
+    -   [Loading Meta and Sequence
+        Data](#loading-meta-and-sequence-data)
 -   [Quality Control](#quality-control)
     -   [Quality Profile](#quality-profile)
     -   [Filtering and Trimming](#filtering-and-trimming)
@@ -144,7 +144,14 @@ library(tidyverse)
 library(digest)
 ```
 
-### Loading Metadata and Sequence Data
+### Loading Meta and Sequence Data
+
+In loading the samples information (metadata), `read_tsv`’s parameter
+`col_types` takes the `cff` to indicate that the first column in a
+*character* (string) but the second and third columns are *factor*
+(categorical) - for more on data types in R, see the episode on [Data
+Types and
+Structures](https://swcarpentry.github.io/r-novice-inflammation/13-supp-data-structures/)
 
 ``` r
 samples = read_tsv("data/samples.tsv", col_types = 'cff')
@@ -156,6 +163,13 @@ glimpse(samples)
     ## $ sample <chr> "SRR10153501", "SRR10153511", "SRR10153503", "SRR10153499", "SR…
     ## $ status <fct> ALS, Control, ALS, Control, ALS, Control, ALS, Control, ALS, Co…
     ## $ pair   <fct> 1, 1, 2, 2, 3, 3, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10
+
+`glimpse` shows that there are 18 rows (samples) and the three columns
+are `sample`, `status`, and `pair` were loaded successfully as `chr`,
+`fct`, and `fct`, respectively.
+
+Now let’s start processing the FASTQ files. First, we will list all the
+files in the `original` subfolder.
 
 ``` r
 path = "data/original"
@@ -175,6 +189,13 @@ list.files(path)
     ## [31] "SRR10153514_1.fastq.gz" "SRR10153514_2.fastq.gz" "SRR10153515_1.fastq.gz"
     ## [34] "SRR10153515_2.fastq.gz" "SRR10153573_1.fastq.gz" "SRR10153573_2.fastq.gz"
 
+The above list will be split into forward and reverse reads, according
+to the FASTQ file name where file names that end with `1.fastq.gz` are
+the forward reads and file names that end with `2.fastq.gz` are the
+reverse reads.
+
+**The forward reads:**
+
 ``` r
 fnFs = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
 head(fnFs)
@@ -186,6 +207,8 @@ head(fnFs)
     ## [4] "data/original/SRR10153502_1.fastq.gz"
     ## [5] "data/original/SRR10153503_1.fastq.gz"
     ## [6] "data/original/SRR10153504_1.fastq.gz"
+
+**The reverse reads:**
 
 ``` r
 fnRs = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
@@ -217,6 +240,9 @@ head(sample.names)
     ## [6] "SRR10153504"
 
 ## Quality Control
+
+Now it comes to the nuts and bolts of using **DADA2** to assess and
+control the quality of the sequence reads.
 
 ### Quality Profile
 
@@ -788,32 +814,32 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1924555 
-    ## Run 1 stress 0.1754283 
+    ## Run 1 stress 0.1970276 
+    ## Run 2 stress 0.2033781 
+    ## Run 3 stress 0.1829888 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1812286  max resid 0.6364827 
-    ## Run 2 stress 0.1907233 
-    ## Run 3 stress 0.2018923 
-    ## Run 4 stress 0.1823568 
-    ## Run 5 stress 0.171294 
+    ## ... Procrustes: rmse 0.1928168  max resid 0.3309631 
+    ## Run 4 stress 0.1712941 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.05056283  max resid 0.1543138 
-    ## Run 6 stress 0.1900726 
-    ## Run 7 stress 0.1923341 
-    ## Run 8 stress 0.1823571 
-    ## Run 9 stress 0.1838543 
-    ## Run 10 stress 0.1752297 
-    ## Run 11 stress 0.1838544 
-    ## Run 12 stress 0.2069762 
-    ## Run 13 stress 0.1855919 
-    ## Run 14 stress 0.1712944 
-    ## ... Procrustes: rmse 0.0007273627  max resid 0.002520138 
+    ## ... Procrustes: rmse 0.08824961  max resid 0.229748 
+    ## Run 5 stress 0.1817494 
+    ## Run 6 stress 0.1752299 
+    ## Run 7 stress 0.1838543 
+    ## Run 8 stress 0.1758292 
+    ## Run 9 stress 0.1976837 
+    ## Run 10 stress 0.1801896 
+    ## Run 11 stress 0.1823568 
+    ## Run 12 stress 0.1879868 
+    ## Run 13 stress 0.314608 
+    ## Run 14 stress 0.1924555 
+    ## Run 15 stress 0.1828268 
+    ## Run 16 stress 0.1712945 
+    ## ... Procrustes: rmse 0.000945678  max resid 0.003275881 
     ## ... Similar to previous best
-    ## Run 15 stress 0.175428 
-    ## Run 16 stress 0.2934909 
-    ## Run 17 stress 0.1752297 
-    ## Run 18 stress 0.1855919 
-    ## Run 19 stress 0.2048112 
-    ## Run 20 stress 0.1817494 
+    ## Run 17 stress 0.204146 
+    ## Run 18 stress 0.1828267 
+    ## Run 19 stress 0.1838543 
+    ## Run 20 stress 0.1954989 
     ## *** Solution reached
 
 ``` r
