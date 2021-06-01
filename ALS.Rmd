@@ -44,6 +44,15 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("dada2")
 ```
 
+The main package required for this lesson is [`phyloseq`](https://doi.org/doi:10.18129/B9.bioc.phyloseq). If it is not installed already, it can installed through [`BiocManager`](https://cran.r-project.org/web/packages/BiocManager/vignettes/BiocManager.html) as follows:
+
+```{r eval=FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("phyloseq")
+```
+
+
 Additional, [`tidyverse`](https://www.tidyverse.org/) will be required for data reading, handling, and plotting. Finally, [`digest`](https://cran.r-project.org/web/packages/digest/index.html) will be required for only prettify the names of the operational taxonomic units (OTUs). Both packages can be installed from the The Comprehensive R Archive Network (CRAN) repository as follows:
 
 ```{r eval=FALSE}
@@ -54,6 +63,7 @@ After all the required packages are successfully installed, typically happens on
 
 ```{r}
 library(dada2)
+library(phyloseq)
 library(tidyverse)
 library(digest)
 ```
@@ -81,21 +91,21 @@ The above list will be split into forward and reverse reads, according to the FA
 **The forward reads:**
 
 ```{r}
-fnFs = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
-head(fnFs)
+forward.original = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
+head(forward.original)
 ```
 
 **The reverse reads:**
 
 ```{r}
-fnRs = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
-head(fnRs)
+reverse.original = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
+head(reverse.original)
 ```
 
-The sample name is extracted from the FASTQ file name using [`strsplit`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/strsplit) by searching and taking the part the file name before the underscore `_`. The extracted sample name should match the `sample` column (first column) in the metadata loaded above. With [`sapply`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/lapply), the extraction (`strsplit`) is applied on the list (vector) of names in `fnFs`.
+The sample name is extracted from the FASTQ file name using [`strsplit`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/strsplit) by searching and taking the part the file name before the underscore `_`. The extracted sample name should match the `sample` column (first column) in the metadata loaded above. With [`sapply`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/lapply), the extraction (`strsplit`) is applied on the list (vector) of names in `forward.original`.
 
 ```{r}
-sample.names = sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+sample.names = sapply(strsplit(basename(forward.original), "_"), `[`, 1)
 head(sample.names)
 ```
 
@@ -103,51 +113,65 @@ head(sample.names)
 
 Now it comes to the nuts and bolts of using **DADA2** to assess and control the quality of the sequence reads.
 
-### Quality Profile
+### Quality Profiles
 
 #### Forward Reads
 
+We will plot (using [`plotQualityProfile`](https://rdrr.io/bioc/dada2/man/plotQualityProfile.html)) the quality profile of *forward* reads in the first two samples
+
 ```{r}
-plotQualityProfile(fnFs[1:2])
+plotQualityProfile(forward.original[1:2])
 ```
 
 #### Reverse Reads
 
+Then the quality profile of *reverse* reads of the same first two samples above
+
 ```{r}
-plotQualityProfile(fnRs[1:2])
+plotQualityProfile(reverse.original[1:2])
 ```
+
+As expected, the forward reads are typically of higher quality for most of the read length, but for the reverse read, the quality drops about half-way through the read length (~ starting from the 100th nucleotide)
 
 ### Filtering and Trimming
 
-```{r}
-# Place filtered files in filtered/ sub-directory
-filtFs = file.path("data/filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
-filtRs = file.path("data/filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
-names(filtFs) = sample.names
-names(filtRs) = sample.names
-```
+Here, only defining the names (`.1.filtered.fastq.gz` and `.2.filtered.fastq.gz` for the *forward* and *reverse* reads, respectively) and destination subfolder `data/filtered` of the filtered FASTQ files. The sample name `sample.names` will be assigned to the row name of the `data.frame`:
 
 ```{r}
-out = filterAndTrim(fnFs, filtFs, fnRs, filtRs, minLen=100, rm.phix = TRUE, multithread=TRUE) # On Windows set
-head(out)
+forward.filtered = file.path("data/filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
+reverse.filtered = file.path("data/filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
+
+names(forward.filtered) = sample.names
+names(reverse.filtered) = sample.names
+```
+
+Now filter and trim using [`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filterAndTrim.html)
+
+```{r}
+out = filterAndTrim(forward.original, forward.filtered, 
+                    reverse.original, reverse.filtered,
+                    minLen = 150,
+                    multithread = TRUE)
+out
 ```
 
 ## Learn the Error Rates
-```{r}
-errF = learnErrors(filtFs, multithread=TRUE)
-errR = learnErrors(filtRs, multithread=TRUE)
 
-plotErrors(errF, nominalQ=TRUE)
+```{r}
+forward.errors = learnErrors(forward.filtered, multithread = TRUE)
+reverse.errors = learnErrors(reverse.filtered, multithread = TRUE)
+
+plotErrors(forward.errors, nominalQ=TRUE)
 ```
 
 ## Sample Inference
 We are now ready to apply the core sample inference algorithm to the filtered and trimmed sequence data.
 ```{r}
-dadaFs = dada(filtFs, err=errF, multithread=TRUE)
+dadaFs = dada(forward.filtered, err=forward.errors, multithread=TRUE)
 ```
 
 ```{r}
-dadaRs = dada(filtRs, err=errR, multithread=TRUE)
+dadaRs = dada(reverse.filtered, err=reverse.errors, multithread=TRUE)
 ```
 
 ## Inspecting the returned dada-class object:
@@ -166,7 +190,7 @@ We now merge the forward and reverse reads together to obtain the full denoised 
 
 
 ```{r}
-mergers = mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+mergers = mergePairs(dadaFs, forward.filtered, dadaRs, reverse.filtered, verbose=TRUE)
 # Inspect the merger data.frame from the first sample
 head(mergers[[1]])
 ```
@@ -278,12 +302,6 @@ Unsurprisingly, the Bacteroidetes are well represented among the most abundant t
 # Handoff to phyloseq
 
 The phyloseq R package is a powerful framework for further analysis of microbiome data. We now demonstrate how to straightforwardly import the tables produced by the DADA2 pipeline into phyloseq. We’ll also add the small amount of metadata we have – the samples are named by the gender (G), mouse subject number (X) and the day post-weaning (Y) it was sampled (eg. GXDY).
-
-
-```{r}
-library("phyloseq")
-```
-
 
 ## Import into phyloseq:
 We can construct a simple sample data.frame from the information encoded in the filenames. Usually this step would instead involve reading the sample data in from a file.

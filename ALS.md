@@ -9,7 +9,7 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
     -   [Loading Meta and Sequence
         Data](#loading-meta-and-sequence-data)
 -   [Quality Control](#quality-control)
-    -   [Quality Profile](#quality-profile)
+    -   [Quality Profiles](#quality-profiles)
     -   [Filtering and Trimming](#filtering-and-trimming)
 -   [Learn the Error Rates](#learn-the-error-rates)
 -   [Sample Inference](#sample-inference)
@@ -104,6 +104,18 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("dada2")
 ```
 
+The main package required for this lesson is
+[`phyloseq`](https://doi.org/doi:10.18129/B9.bioc.phyloseq). If it is
+not installed already, it can installed through
+[`BiocManager`](https://cran.r-project.org/web/packages/BiocManager/vignettes/BiocManager.html)
+as follows:
+
+``` r
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("phyloseq")
+```
+
 Additional, [`tidyverse`](https://www.tidyverse.org/) will be required
 for data reading, handling, and plotting. Finally,
 [`digest`](https://cran.r-project.org/web/packages/digest/index.html)
@@ -126,6 +138,7 @@ library(dada2)
     ## Loading required package: Rcpp
 
 ``` r
+library(phyloseq)
 library(tidyverse)
 ```
 
@@ -197,8 +210,8 @@ reverse reads.
 **The forward reads:**
 
 ``` r
-fnFs = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
-head(fnFs)
+forward.original = sort(list.files(path, pattern="1.fastq.gz", full.names = TRUE))
+head(forward.original)
 ```
 
     ## [1] "data/original/SRR10153499_1.fastq.gz"
@@ -211,8 +224,8 @@ head(fnFs)
 **The reverse reads:**
 
 ``` r
-fnRs = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
-head(fnRs)
+reverse.original = sort(list.files(path, pattern="2.fastq.gz", full.names = TRUE))
+head(reverse.original)
 ```
 
     ## [1] "data/original/SRR10153499_2.fastq.gz"
@@ -229,10 +242,10 @@ by searching and taking the part the file name before the underscore
 column) in the metadata loaded above. With
 [`sapply`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/lapply),
 the extraction (`strsplit`) is applied on the list (vector) of names in
-`fnFs`.
+`forward.original`.
 
 ``` r
-sample.names = sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+sample.names = sapply(strsplit(basename(forward.original), "_"), `[`, 1)
 head(sample.names)
 ```
 
@@ -244,71 +257,106 @@ head(sample.names)
 Now it comes to the nuts and bolts of using **DADA2** to assess and
 control the quality of the sequence reads.
 
-### Quality Profile
+### Quality Profiles
 
 #### Forward Reads
 
-``` r
-plotQualityProfile(fnFs[1:2])
-```
-
-![](ALS_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
-
-#### Reverse Reads
+We will plot (using
+[`plotQualityProfile`](https://rdrr.io/bioc/dada2/man/plotQualityProfile.html))
+the quality profile of *forward* reads in the first two samples
 
 ``` r
-plotQualityProfile(fnRs[1:2])
+plotQualityProfile(forward.original[1:2])
 ```
 
 ![](ALS_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
-### Filtering and Trimming
+#### Reverse Reads
+
+Then the quality profile of *reverse* reads of the same first two
+samples above
 
 ``` r
-# Place filtered files in filtered/ sub-directory
-filtFs = file.path("data/filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
-filtRs = file.path("data/filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
-names(filtFs) = sample.names
-names(filtRs) = sample.names
+plotQualityProfile(reverse.original[1:2])
 ```
 
+![](ALS_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+As expected, the forward reads are typically of higher quality for most
+of the read length, but for the reverse read, the quality drops about
+half-way through the read length (\~ starting from the 100th nucleotide)
+
+### Filtering and Trimming
+
+Here, only defining the names (`.1.filtered.fastq.gz` and
+`.2.filtered.fastq.gz` for the *forward* and *reverse* reads,
+respectively) and destination subfolder `data/filtered` of the filtered
+FASTQ files. The sample name `sample.names` will be assigned to the row
+name of the `data.frame`:
+
 ``` r
-out = filterAndTrim(fnFs, filtFs, fnRs, filtRs, minLen=100, rm.phix = TRUE, multithread=TRUE) # On Windows set
-head(out)
+forward.filtered = file.path("data/filtered", paste0(sample.names, ".1.filtered.fastq.gz"))
+reverse.filtered = file.path("data/filtered", paste0(sample.names, ".2.filtered.fastq.gz"))
+
+names(forward.filtered) = sample.names
+names(reverse.filtered) = sample.names
+```
+
+Now filter and trim using
+[`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filterAndTrim.html)
+
+``` r
+out = filterAndTrim(forward.original, forward.filtered, 
+                    reverse.original, reverse.filtered,
+                    minLen = 150,
+                    multithread = TRUE)
+out
 ```
 
 |                         | reads.in | reads.out |
 |:------------------------|---------:|----------:|
-| SRR10153499\_1.fastq.gz |    11688 |     11688 |
-| SRR10153500\_1.fastq.gz |    15828 |     14203 |
-| SRR10153501\_1.fastq.gz |    14180 |     14180 |
-| SRR10153502\_1.fastq.gz |    10482 |     10482 |
-| SRR10153503\_1.fastq.gz |    13782 |     13782 |
-| SRR10153504\_1.fastq.gz |    14467 |     14467 |
+| SRR10153499\_1.fastq.gz |    11688 |      9907 |
+| SRR10153500\_1.fastq.gz |    15828 |     11295 |
+| SRR10153501\_1.fastq.gz |    14180 |     11437 |
+| SRR10153502\_1.fastq.gz |    10482 |      8965 |
+| SRR10153503\_1.fastq.gz |    13782 |     11345 |
+| SRR10153504\_1.fastq.gz |    14467 |     11425 |
+| SRR10153505\_1.fastq.gz |    12705 |     11111 |
+| SRR10153506\_1.fastq.gz |    13557 |     12067 |
+| SRR10153507\_1.fastq.gz |    11403 |      9883 |
+| SRR10153508\_1.fastq.gz |    11681 |      9563 |
+| SRR10153509\_1.fastq.gz |    14382 |     10508 |
+| SRR10153510\_1.fastq.gz |    13186 |     11592 |
+| SRR10153511\_1.fastq.gz |    10621 |      8911 |
+| SRR10153512\_1.fastq.gz |    12542 |     10840 |
+| SRR10153513\_1.fastq.gz |    11066 |      9624 |
+| SRR10153514\_1.fastq.gz |    11063 |      9088 |
+| SRR10153515\_1.fastq.gz |    12525 |     10429 |
+| SRR10153573\_1.fastq.gz |    14046 |     12018 |
 
 ## Learn the Error Rates
 
 ``` r
-errF = learnErrors(filtFs, multithread=TRUE)
+forward.errors = learnErrors(forward.filtered, multithread = TRUE)
 ```
 
-    ## 53415457 total bases in 227501 reads from 18 samples will be used for learning the error rates.
+    ## 45461505 total bases in 190008 reads from 18 samples will be used for learning the error rates.
 
 ``` r
-errR = learnErrors(filtRs, multithread=TRUE)
+reverse.errors = learnErrors(reverse.filtered, multithread = TRUE)
 ```
 
-    ## 44820958 total bases in 227501 reads from 18 samples will be used for learning the error rates.
+    ## 39575151 total bases in 190008 reads from 18 samples will be used for learning the error rates.
 
 ``` r
-plotErrors(errF, nominalQ=TRUE)
+plotErrors(forward.errors, nominalQ=TRUE)
 ```
 
     ## Warning: Transformation introduced infinite values in continuous y-axis
 
     ## Warning: Transformation introduced infinite values in continuous y-axis
 
-![](ALS_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ## Sample Inference
 
@@ -316,50 +364,50 @@ We are now ready to apply the core sample inference algorithm to the
 filtered and trimmed sequence data.
 
 ``` r
-dadaFs = dada(filtFs, err=errF, multithread=TRUE)
+dadaFs = dada(forward.filtered, err=forward.errors, multithread=TRUE)
 ```
 
-    ## Sample 1 - 11688 reads in 5168 unique sequences.
-    ## Sample 2 - 14203 reads in 8601 unique sequences.
-    ## Sample 3 - 14180 reads in 7881 unique sequences.
-    ## Sample 4 - 10482 reads in 5781 unique sequences.
-    ## Sample 5 - 13782 reads in 6773 unique sequences.
-    ## Sample 6 - 14467 reads in 8339 unique sequences.
-    ## Sample 7 - 12705 reads in 6219 unique sequences.
-    ## Sample 8 - 13557 reads in 6882 unique sequences.
-    ## Sample 9 - 11403 reads in 6993 unique sequences.
-    ## Sample 10 - 11681 reads in 5100 unique sequences.
-    ## Sample 11 - 14304 reads in 7342 unique sequences.
-    ## Sample 12 - 13186 reads in 7178 unique sequences.
-    ## Sample 13 - 10621 reads in 5106 unique sequences.
-    ## Sample 14 - 12542 reads in 5213 unique sequences.
-    ## Sample 15 - 11066 reads in 7055 unique sequences.
-    ## Sample 16 - 11063 reads in 6101 unique sequences.
-    ## Sample 17 - 12525 reads in 4736 unique sequences.
-    ## Sample 18 - 14046 reads in 7130 unique sequences.
+    ## Sample 1 - 9907 reads in 4306 unique sequences.
+    ## Sample 2 - 11295 reads in 6598 unique sequences.
+    ## Sample 3 - 11437 reads in 6130 unique sequences.
+    ## Sample 4 - 8965 reads in 4869 unique sequences.
+    ## Sample 5 - 11345 reads in 5462 unique sequences.
+    ## Sample 6 - 11425 reads in 6348 unique sequences.
+    ## Sample 7 - 11111 reads in 5274 unique sequences.
+    ## Sample 8 - 12067 reads in 5961 unique sequences.
+    ## Sample 9 - 9883 reads in 5960 unique sequences.
+    ## Sample 10 - 9563 reads in 4130 unique sequences.
+    ## Sample 11 - 10508 reads in 5357 unique sequences.
+    ## Sample 12 - 11592 reads in 6122 unique sequences.
+    ## Sample 13 - 8911 reads in 4174 unique sequences.
+    ## Sample 14 - 10840 reads in 4331 unique sequences.
+    ## Sample 15 - 9624 reads in 6037 unique sequences.
+    ## Sample 16 - 9088 reads in 4960 unique sequences.
+    ## Sample 17 - 10429 reads in 3865 unique sequences.
+    ## Sample 18 - 12018 reads in 5879 unique sequences.
 
 ``` r
-dadaRs = dada(filtRs, err=errR, multithread=TRUE)
+dadaRs = dada(reverse.filtered, err=reverse.errors, multithread=TRUE)
 ```
 
-    ## Sample 1 - 11688 reads in 7403 unique sequences.
-    ## Sample 2 - 14203 reads in 10640 unique sequences.
-    ## Sample 3 - 14180 reads in 10079 unique sequences.
-    ## Sample 4 - 10482 reads in 7576 unique sequences.
-    ## Sample 5 - 13782 reads in 9143 unique sequences.
-    ## Sample 6 - 14467 reads in 10393 unique sequences.
-    ## Sample 7 - 12705 reads in 8036 unique sequences.
-    ## Sample 8 - 13557 reads in 9126 unique sequences.
-    ## Sample 9 - 11403 reads in 8485 unique sequences.
-    ## Sample 10 - 11681 reads in 7338 unique sequences.
-    ## Sample 11 - 14304 reads in 9670 unique sequences.
-    ## Sample 12 - 13186 reads in 9577 unique sequences.
-    ## Sample 13 - 10621 reads in 7379 unique sequences.
-    ## Sample 14 - 12542 reads in 7051 unique sequences.
-    ## Sample 15 - 11066 reads in 8932 unique sequences.
-    ## Sample 16 - 11063 reads in 7942 unique sequences.
-    ## Sample 17 - 12525 reads in 6423 unique sequences.
-    ## Sample 18 - 14046 reads in 9198 unique sequences.
+    ## Sample 1 - 9907 reads in 6084 unique sequences.
+    ## Sample 2 - 11295 reads in 8328 unique sequences.
+    ## Sample 3 - 11437 reads in 8002 unique sequences.
+    ## Sample 4 - 8965 reads in 6397 unique sequences.
+    ## Sample 5 - 11345 reads in 7343 unique sequences.
+    ## Sample 6 - 11425 reads in 7901 unique sequences.
+    ## Sample 7 - 11111 reads in 6943 unique sequences.
+    ## Sample 8 - 12067 reads in 7889 unique sequences.
+    ## Sample 9 - 9883 reads in 7295 unique sequences.
+    ## Sample 10 - 9563 reads in 5886 unique sequences.
+    ## Sample 11 - 10508 reads in 7123 unique sequences.
+    ## Sample 12 - 11592 reads in 8244 unique sequences.
+    ## Sample 13 - 8911 reads in 5942 unique sequences.
+    ## Sample 14 - 10840 reads in 5829 unique sequences.
+    ## Sample 15 - 9624 reads in 7704 unique sequences.
+    ## Sample 16 - 9088 reads in 6444 unique sequences.
+    ## Sample 17 - 10429 reads in 5279 unique sequences.
+    ## Sample 18 - 12018 reads in 7587 unique sequences.
 
 ## Inspecting the returned dada-class object:
 
@@ -368,7 +416,7 @@ dadaFs[[1]]
 ```
 
     ## dada-class: object describing DADA2 denoising results
-    ## 65 sequence variants were inferred from 5168 input unique sequences.
+    ## 63 sequence variants were inferred from 4306 input unique sequences.
     ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
 
 ``` r
@@ -376,7 +424,7 @@ dadaRs[[1]]
 ```
 
     ## dada-class: object describing DADA2 denoising results
-    ## 35 sequence variants were inferred from 7403 input unique sequences.
+    ## 36 sequence variants were inferred from 6084 input unique sequences.
     ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
 
 ## Merge paired reads
@@ -391,56 +439,56 @@ the overlap region (but these conditions can be changed via function
 arguments).
 
 ``` r
-mergers = mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+mergers = mergePairs(dadaFs, forward.filtered, dadaRs, reverse.filtered, verbose=TRUE)
 ```
 
-    ## 9425 paired-reads (in 33 unique pairings) successfully merged out of 11337 (in 132 pairings) input.
+    ## 8188 paired-reads (in 34 unique pairings) successfully merged out of 9583 (in 101 pairings) input.
 
     ## Duplicate sequences in merged output.
 
-    ## 10731 paired-reads (in 61 unique pairings) successfully merged out of 13426 (in 443 pairings) input.
-
-    ## 11277 paired-reads (in 55 unique pairings) successfully merged out of 13790 (in 311 pairings) input.
-
-    ## 7178 paired-reads (in 30 unique pairings) successfully merged out of 10001 (in 313 pairings) input.
+    ## 8454 paired-reads (in 59 unique pairings) successfully merged out of 10536 (in 246 pairings) input.
 
     ## Duplicate sequences in merged output.
 
-    ## 9765 paired-reads (in 35 unique pairings) successfully merged out of 13262 (in 234 pairings) input.
+    ## 9263 paired-reads (in 58 unique pairings) successfully merged out of 11048 (in 192 pairings) input.
 
-    ## 11774 paired-reads (in 57 unique pairings) successfully merged out of 13940 (in 330 pairings) input.
+    ## 6208 paired-reads (in 30 unique pairings) successfully merged out of 8471 (in 214 pairings) input.
 
-    ## Duplicate sequences in merged output.
+    ## 8025 paired-reads (in 34 unique pairings) successfully merged out of 10896 (in 153 pairings) input.
 
-    ## 9410 paired-reads (in 36 unique pairings) successfully merged out of 12254 (in 295 pairings) input.
-
-    ## 11103 paired-reads (in 42 unique pairings) successfully merged out of 13107 (in 203 pairings) input.
-
-    ## 7864 paired-reads (in 37 unique pairings) successfully merged out of 10872 (in 357 pairings) input.
-
-    ## 10052 paired-reads (in 36 unique pairings) successfully merged out of 11327 (in 175 pairings) input.
+    ## 9086 paired-reads (in 52 unique pairings) successfully merged out of 10891 (in 199 pairings) input.
 
     ## Duplicate sequences in merged output.
 
-    ## 10395 paired-reads (in 47 unique pairings) successfully merged out of 13599 (in 377 pairings) input.
-
-    ## 11041 paired-reads (in 52 unique pairings) successfully merged out of 12556 (in 273 pairings) input.
-
-    ## 8890 paired-reads (in 30 unique pairings) successfully merged out of 10190 (in 166 pairings) input.
-
-    ## 11416 paired-reads (in 31 unique pairings) successfully merged out of 12346 (in 109 pairings) input.
-
-    ## 7555 paired-reads (in 60 unique pairings) successfully merged out of 10113 (in 372 pairings) input.
+    ## 8073 paired-reads (in 35 unique pairings) successfully merged out of 10613 (in 207 pairings) input.
 
     ## Duplicate sequences in merged output.
 
-    ## 8214 paired-reads (in 35 unique pairings) successfully merged out of 10588 (in 226 pairings) input.
+    ## 9942 paired-reads (in 42 unique pairings) successfully merged out of 11661 (in 153 pairings) input.
+
+    ## 6890 paired-reads (in 39 unique pairings) successfully merged out of 9242 (in 243 pairings) input.
+
+    ## 8307 paired-reads (in 34 unique pairings) successfully merged out of 9231 (in 113 pairings) input.
 
     ## Duplicate sequences in merged output.
 
-    ## 10079 paired-reads (in 18 unique pairings) successfully merged out of 12309 (in 95 pairings) input.
+    ## 8333 paired-reads (in 50 unique pairings) successfully merged out of 9927 (in 199 pairings) input.
 
-    ## 11090 paired-reads (in 36 unique pairings) successfully merged out of 13562 (in 206 pairings) input.
+    ## 9652 paired-reads (in 54 unique pairings) successfully merged out of 10969 (in 185 pairings) input.
+
+    ## 7437 paired-reads (in 27 unique pairings) successfully merged out of 8526 (in 118 pairings) input.
+
+    ## 9990 paired-reads (in 30 unique pairings) successfully merged out of 10656 (in 82 pairings) input.
+
+    ## 6714 paired-reads (in 61 unique pairings) successfully merged out of 8721 (in 248 pairings) input.
+
+    ## 6509 paired-reads (in 32 unique pairings) successfully merged out of 8627 (in 147 pairings) input.
+
+    ## Duplicate sequences in merged output.
+
+    ## 8878 paired-reads (in 19 unique pairings) successfully merged out of 10278 (in 79 pairings) input.
+
+    ## 9486 paired-reads (in 34 unique pairings) successfully merged out of 11590 (in 136 pairings) input.
 
     ## Duplicate sequences in merged output.
 
@@ -451,12 +499,12 @@ head(mergers[[1]])
 
 | sequence                                                                                                                                                                                                                                                      | abundance | forward | reverse | nmatch | nmismatch | nindel | prefer | accept |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------:|--------:|--------:|-------:|----------:|-------:|-------:|:-------|
-| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCTGTCTATTAAGCGTGTTGTGAAATTTACCGGCTCAACCGGTGGCTTGCAGCGCGAACTGGTCGACTTGAGTATGCAGGAAGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGACGAACTCCGATTGCGCAGGCAGCTTACTGTAGCATAACTGACGCTGATGCTCGAAAGTGCGGGTATCAAACAGG |      2916 |       1 |       1 |    247 |         0 |      0 |      1 | TRUE   |
-| TACGGAAGGTTCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGTTTGGTAAGCGTGTTGTGAAATGTAGGAGCTCAACTTCTAGATTGCAGCGCGAACTGTCAGACTTGAGTGCGCACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGCGCAACTGACGCTGAAGCTCGAAGGTGCGGGTATCGAACAGG |      1077 |       3 |       2 |    247 |         0 |      0 |      1 | TRUE   |
-| TACAGAGGTCTCAAGCGTTGTTCGGAATCACTGGGCGTAAAGCGTGCGTAGGCTGTTTCGTAAGTCGTGTGTGAAAGGCGCGGGCTCAACCCGCGGACGGCACATGATACTGCGAGACTAGAGTAATGGAGGGGGAACCGGAATTCTCGGTGTAGCAGTGAAATGCGTAGATATCGAGAGGAACACTCGTGGCGAAGGCGGGTTCCTGGACATTAACTGACGCTGAGGCACGAAGGCCAGGGGAGCGAAAGGG |       976 |       2 |       3 |    193 |         0 |      0 |      2 | TRUE   |
-| TACGGAAGGTTCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGTTTGGTAAGCGTGTTGTGAAATGTAGTAGCTCAACTTCTAGATTGCAGCGCGAACTGTCAGACTTGAGTGCGCACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGCGCAACTGACGCTGAAGCTCGAAGGTGCGGGTATCGAACAGG |       669 |       4 |      32 |    247 |         0 |      0 |      1 | TRUE   |
-| TACGTATGGAGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGGGTACGCAGGCGGTTTAATAAGTCGAATGTTAAAGATCGGGGCTCAACCCCGTAAAGCATTGGAAACTGATAAACTTGAGTAGTGGAGAGGAAAGTGGAATTCCTAGTGTAGTGGTGAAATACGTAGATATTAGGAGGAATACCAGTAGCGAAGGCGACTTTCTGGACACAAACTGACGCTGAGGTACGAAAGCGTGGGGAGCAAACAGG  |       463 |       6 |       5 |    250 |         0 |      0 |      2 | TRUE   |
-| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCTGTCTATTAAGCGTGTTGTGAAATATACCGGCTCAACCGGTGGCTTGCAGCGCGAACTGGTCGACTTGAGTATGCAGGAAGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGACGAACTCCGATTGCGCAGGCAGCTTACTGTAGCATAACTGACGCTGATGCTCGAAAGTGCGGGTATCAAACAGG |       439 |       5 |      34 |    247 |         0 |      0 |      1 | TRUE   |
+| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCTGTCTATTAAGCGTGTTGTGAAATTTACCGGCTCAACCGGTGGCTTGCAGCGCGAACTGGTCGACTTGAGTATGCAGGAAGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGACGAACTCCGATTGCGCAGGCAGCTTACTGTAGCATAACTGACGCTGATGCTCGAAAGTGCGGGTATCAAACAGG |      2368 |       1 |       1 |    247 |         0 |      0 |      1 | TRUE   |
+| TACGGAAGGTTCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGTTTGGTAAGCGTGTTGTGAAATGTAGGAGCTCAACTTCTAGATTGCAGCGCGAACTGTCAGACTTGAGTGCGCACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGCGCAACTGACGCTGAAGCTCGAAGGTGCGGGTATCGAACAGG |       916 |       3 |       2 |    247 |         0 |      0 |      1 | TRUE   |
+| TACAGAGGTCTCAAGCGTTGTTCGGAATCACTGGGCGTAAAGCGTGCGTAGGCTGTTTCGTAAGTCGTGTGTGAAAGGCGCGGGCTCAACCCGCGGACGGCACATGATACTGCGAGACTAGAGTAATGGAGGGGGAACCGGAATTCTCGGTGTAGCAGTGAAATGCGTAGATATCGAGAGGAACACTCGTGGCGAAGGCGGGTTCCTGGACATTAACTGACGCTGAGGCACGAAGGCCAGGGGAGCGAAAGGG |       906 |       2 |       3 |    193 |         0 |      0 |      2 | TRUE   |
+| TACGGAAGGTTCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGTTTGGTAAGCGTGTTGTGAAATGTAGTAGCTCAACTTCTAGATTGCAGCGCGAACTGTCAGACTTGAGTGCGCACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGCGCAACTGACGCTGAAGCTCGAAGGTGCGGGTATCGAACAGG |       665 |       4 |      31 |    247 |         0 |      0 |      1 | TRUE   |
+| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCTGTCTATTAAGCGTGTTGTGAAATATACCGGCTCAACCGGTGGCTTGCAGCGCGAACTGGTCGACTTGAGTATGCAGGAAGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGACGAACTCCGATTGCGCAGGCAGCTTACTGTAGCATAACTGACGCTGATGCTCGAAAGTGCGGGTATCAAACAGG |       435 |      10 |      33 |    247 |         0 |      0 |      1 | TRUE   |
+| TACGTATGGAGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGGGTACGCAGGCGGTTTAATAAGTCGAATGTTAAAGATCGGGGCTCAACCCCGTAAAGCATTGGAAACTGATAAACTTGAGTAGTGGAGAGGAAAGTGGAATTCCTAGTGTAGTGGTGAAATACGTAGATATTAGGAGGAATACCAGTAGCGAAGGCGACTTTCTGGACACAAACTGACGCTGAGGTACGAAAGCGTGGGGAGCAAACAGG  |       404 |       5 |       5 |    250 |         0 |      0 |      2 | TRUE   |
 
 The `mergers` object is a list of data.frames from each sample. Each
 data.frame contains the merged `sequence`, its `abundance`, and the
@@ -523,19 +571,19 @@ more abundant “parent” sequences.
 seqtab.nochim = removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 ```
 
-    ## Identified 21 bimeras out of 293 input sequences.
+    ## Identified 18 bimeras out of 293 input sequences.
 
 ``` r
 dim(seqtab.nochim)
 ```
 
-    ## [1]  18 272
+    ## [1]  18 275
 
 ``` r
 sum(seqtab.nochim)/sum(seqtab)
 ```
 
-    ## [1] 0.9872108
+    ## [1] 0.9865828
 
 The frequency of chimeric sequences varies substantially from dataset to
 dataset, and depends on on factors including experimental procedures and
@@ -578,12 +626,12 @@ head(track)
 
 |             | input | filtered | denoisedF | denoisedR | merged | nonchim |
 |:------------|------:|---------:|----------:|----------:|-------:|--------:|
-| SRR10153499 | 11688 |    11688 |     11443 |     11492 |   9425 |    9425 |
-| SRR10153500 | 15828 |    14203 |     13676 |     13833 |  10731 |   10711 |
-| SRR10153501 | 14180 |    14180 |     13951 |     13964 |  11277 |   11277 |
-| SRR10153502 | 10482 |    10482 |     10134 |     10260 |   7178 |    7111 |
-| SRR10153503 | 13782 |    13782 |     13448 |     13486 |   9765 |    9713 |
-| SRR10153504 | 14467 |    14467 |     14093 |     14204 |  11774 |   11774 |
+| SRR10153499 | 11688 |     9907 |      9688 |      9703 |   8188 |    8188 |
+| SRR10153500 | 15828 |    11295 |     10847 |     10788 |   8454 |    8449 |
+| SRR10153501 | 14180 |    11437 |     11191 |     11209 |   9263 |    9263 |
+| SRR10153502 | 10482 |     8965 |      8671 |      8642 |   6208 |    6119 |
+| SRR10153503 | 13782 |    11345 |     11079 |     11059 |   8025 |    7979 |
+| SRR10153504 | 14467 |    11425 |     11104 |     11076 |   9086 |    9086 |
 
 Looks good! We kept the majority of our raw reads, and there is no
 over-large drop associated with any single step.
@@ -627,8 +675,8 @@ head(taxa)
 
 |                                                                                                                                                                                                                                                               | Kingdom  | Phylum           | Class           | Order                               | Family             | Genus         |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|:-----------------|:----------------|:------------------------------------|:-------------------|:--------------|
-| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGCCTGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGAACTGCAGCGCGAACTGGCTGGCTTGAGTACACGCAACGTGGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAGGAACTCCTATTGCGAAGGCAGCTCACGGGAGTGTCACTGACGCTTAAGCTCGAAGGTGCGGGTATCAAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    |
 | TACGGAAGGTTCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGTTTGGTAAGCGTGTTGTGAAATGTAGGAGCTCAACTTCTAGATTGCAGCGCGAACTGTCAGACTTGAGTGCGCACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGCGCAACTGACGCTGAAGCTCGAAGGTGCGGGTATCGAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    |
+| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGCCTGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGAACTGCAGCGCGAACTGGCTGGCTTGAGTACACGCAACGTGGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAGGAACTCCTATTGCGAAGGCAGCTCACGGGAGTGTCACTGACGCTTAAGCTCGAAGGTGCGGGTATCAAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    |
 | TACGTATGGAGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGGGTACGCAGGCGGTTTAATAAGTCGAATGTTAAAGATCGGGGCTCAACCCCGTAAAGCATTGGAAACTGATAAACTTGAGTAGTGGAGAGGAAAGTGGAATTCCTAGTGTAGTGGTGAAATACGTAGATATTAGGAGGAATACCAGTAGCGAAGGCGACTTTCTGGACACAAACTGACGCTGAGGTACGAAAGCGTGGGGAGCAAACAGG  | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Finegoldia         | NA            |
 | TACGGAAGGTCCAGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGTTGGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGACTTGCAGCGCGAACTGGCTGACTTGAGTACACACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGTGTTACTGACGCTTAAGCTCGAAGGTGCGGGTATCGAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    |
 | TACGTAAGGGGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGAGTGCGTAGGCGGCAAATTAAGTCAGATGTGAAAACTAAGGGCTCAACCCATAGATTGCATCTGAAACTGATATGCTTGAGTCAAGGAGAGGAAAGTGGAATTCCTAGTGTAGCGGTGGAATGCGTAGATATTAGGAGGAATACCGGTGGCGAAGGCGACTTTCTGGACTTGAACTGACGCTGAGGCACGAAAGCGTGGGGAGCAAACAGG | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            |
@@ -655,8 +703,8 @@ head(taxa)
 
 |                                                                                                                                                                                                                                                               | Kingdom  | Phylum           | Class           | Order                               | Family             | Genus         | Species  |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|:-----------------|:----------------|:------------------------------------|:-------------------|:--------------|:---------|
-| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGCCTGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGAACTGCAGCGCGAACTGGCTGGCTTGAGTACACGCAACGTGGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAGGAACTCCTATTGCGAAGGCAGCTCACGGGAGTGTCACTGACGCTTAAGCTCGAAGGTGCGGGTATCAAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
 | TACGGAAGGTTCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCCGTTTGGTAAGCGTGTTGTGAAATGTAGGAGCTCAACTTCTAGATTGCAGCGCGAACTGTCAGACTTGAGTGCGCACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGCGCAACTGACGCTGAAGCTCGAAGGTGCGGGTATCGAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | NA       |
+| TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGCCTGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGAACTGCAGCGCGAACTGGCTGGCTTGAGTACACGCAACGTGGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAGGAACTCCTATTGCGAAGGCAGCTCACGGGAGTGTCACTGACGCTTAAGCTCGAAGGTGCGGGTATCAAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
 | TACGTATGGAGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGGGTACGCAGGCGGTTTAATAAGTCGAATGTTAAAGATCGGGGCTCAACCCCGTAAAGCATTGGAAACTGATAAACTTGAGTAGTGGAGAGGAAAGTGGAATTCCTAGTGTAGTGGTGAAATACGTAGATATTAGGAGGAATACCAGTAGCGAAGGCGACTTTCTGGACACAAACTGACGCTGAGGTACGAAAGCGTGGGGAGCAAACAGG  | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Finegoldia         | NA            | NA       |
 | TACGGAAGGTCCAGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGTTGGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGACTTGCAGCGCGAACTGGCTGACTTGAGTACACACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGTGTTACTGACGCTTAAGCTCGAAGGTGCGGGTATCGAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | disiens  |
 | TACGTAAGGGGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGAGTGCGTAGGCGGCAAATTAAGTCAGATGTGAAAACTAAGGGCTCAACCCATAGATTGCATCTGAAACTGATATGCTTGAGTCAAGGAGAGGAAAGTGGAATTCCTAGTGTAGCGGTGGAATGCGTAGATATTAGGAGGAATACCGGTGGCGAAGGCGACTTTCTGGACTTGAACTGACGCTGAGGCACGAAAGCGTGGGGAGCAAACAGG | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            | NA       |
@@ -671,10 +719,10 @@ colnames(otus) = md5
 otus[1:2, 1:2]
 ```
 
-|             | 023d4737baa910a431f2ddb5de0e44c8 | 6075c62942cb38859a92dd48a72a3885 |
+|             | 6075c62942cb38859a92dd48a72a3885 | 023d4737baa910a431f2ddb5de0e44c8 |
 |:------------|---------------------------------:|---------------------------------:|
-| SRR10153499 |                                0 |                             1077 |
-| SRR10153500 |                              460 |                                0 |
+| SRR10153499 |                              916 |                                0 |
+| SRR10153500 |                                0 |                              457 |
 
 ``` r
 rownames(taxa) = lapply(rownames(taxa), digest)
@@ -683,8 +731,8 @@ head(taxa)
 
 |                                  | Kingdom  | Phylum           | Class           | Order                               | Family             | Genus         | Species  |
 |:---------------------------------|:---------|:-----------------|:----------------|:------------------------------------|:-------------------|:--------------|:---------|
-| 023d4737baa910a431f2ddb5de0e44c8 | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
 | 6075c62942cb38859a92dd48a72a3885 | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | NA       |
+| 023d4737baa910a431f2ddb5de0e44c8 | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
 | 504fb0a312e04e43d371acb19a95d789 | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Finegoldia         | NA            | NA       |
 | 6619cbcb3bcaafe1e418ad7b9073af70 | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | disiens  |
 | 977091fc9d08b0b43c99857ca9976e72 | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            | NA       |
@@ -700,8 +748,8 @@ head(taxa.print)
 
 | Kingdom  | Phylum           | Class           | Order                               | Family             | Genus         | Species  |
 |:---------|:-----------------|:----------------|:------------------------------------|:-------------------|:--------------|:---------|
-| Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
 | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | NA       |
+| Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
 | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Finegoldia         | NA            | NA       |
 | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | disiens  |
 | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            | NA       |
@@ -730,10 +778,6 @@ tables produced by the DADA2 pipeline into phyloseq. We’ll also add the
 small amount of metadata we have – the samples are named by the gender
 (G), mouse subject number (X) and the day post-weaning (Y) it was
 sampled (eg. GXDY).
-
-``` r
-library("phyloseq")
-```
 
 ## Import into phyloseq:
 
@@ -776,9 +820,9 @@ ps
 ```
 
     ## phyloseq-class experiment-level object
-    ## otu_table()   OTU Table:         [ 272 taxa and 18 samples ]
+    ## otu_table()   OTU Table:         [ 275 taxa and 18 samples ]
     ## sample_data() Sample Data:       [ 18 samples by 3 sample variables ]
-    ## tax_table()   Taxonomy Table:    [ 272 taxa by 7 taxonomic ranks ]
+    ## tax_table()   Taxonomy Table:    [ 275 taxa by 7 taxonomic ranks ]
 
 We are now ready to use phyloseq!
 
@@ -813,33 +857,44 @@ distances
 ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
-    ## Run 0 stress 0.1924555 
-    ## Run 1 stress 0.1970276 
-    ## Run 2 stress 0.2033781 
-    ## Run 3 stress 0.1829888 
+    ## Run 0 stress 0.1867397 
+    ## Run 1 stress 0.18341 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1928168  max resid 0.3309631 
-    ## Run 4 stress 0.1712941 
+    ## ... Procrustes: rmse 0.1496154  max resid 0.5094789 
+    ## Run 2 stress 0.1766462 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.08824961  max resid 0.229748 
-    ## Run 5 stress 0.1817494 
-    ## Run 6 stress 0.1752299 
-    ## Run 7 stress 0.1838543 
-    ## Run 8 stress 0.1758292 
-    ## Run 9 stress 0.1976837 
-    ## Run 10 stress 0.1801896 
-    ## Run 11 stress 0.1823568 
-    ## Run 12 stress 0.1879868 
-    ## Run 13 stress 0.314608 
-    ## Run 14 stress 0.1924555 
-    ## Run 15 stress 0.1828268 
-    ## Run 16 stress 0.1712945 
-    ## ... Procrustes: rmse 0.000945678  max resid 0.003275881 
+    ## ... Procrustes: rmse 0.1659714  max resid 0.3196243 
+    ## Run 3 stress 0.1693974 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.08497683  max resid 0.2246713 
+    ## Run 4 stress 0.1885589 
+    ## Run 5 stress 0.1679987 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.06183084  max resid 0.183515 
+    ## Run 6 stress 0.1889447 
+    ## Run 7 stress 0.1693584 
+    ## Run 8 stress 0.1693584 
+    ## Run 9 stress 0.1867397 
+    ## Run 10 stress 0.1988228 
+    ## Run 11 stress 0.2007892 
+    ## Run 12 stress 0.1677133 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.0184539  max resid 0.06054896 
+    ## Run 13 stress 0.1741992 
+    ## Run 14 stress 0.1945467 
+    ## Run 15 stress 0.1808857 
+    ## Run 16 stress 0.1677133 
+    ## ... New best solution
+    ## ... Procrustes: rmse 1.858865e-05  max resid 5.650673e-05 
     ## ... Similar to previous best
-    ## Run 17 stress 0.204146 
-    ## Run 18 stress 0.1828267 
-    ## Run 19 stress 0.1838543 
-    ## Run 20 stress 0.1954989 
+    ## Run 17 stress 0.1978151 
+    ## Run 18 stress 0.1677136 
+    ## ... Procrustes: rmse 0.0001884901  max resid 0.0006609735 
+    ## ... Similar to previous best
+    ## Run 19 stress 0.1677134 
+    ## ... Procrustes: rmse 0.0006078924  max resid 0.002132427 
+    ## ... Similar to previous best
+    ## Run 20 stress 0.1741992 
     ## *** Solution reached
 
 ``` r
@@ -858,9 +913,9 @@ ps
 ```
 
     ## phyloseq-class experiment-level object
-    ## otu_table()   OTU Table:         [ 272 taxa and 18 samples ]
+    ## otu_table()   OTU Table:         [ 275 taxa and 18 samples ]
     ## sample_data() Sample Data:       [ 18 samples by 3 sample variables ]
-    ## tax_table()   Taxonomy Table:    [ 272 taxa by 7 taxonomic ranks ]
+    ## tax_table()   Taxonomy Table:    [ 275 taxa by 7 taxonomic ranks ]
 
 ``` r
 ps_norm  = transform_sample_counts(ps, function(x) x / sum(x) )
@@ -869,9 +924,9 @@ ps_filtered
 ```
 
     ## phyloseq-class experiment-level object
-    ## otu_table()   OTU Table:         [ 129 taxa and 18 samples ]
+    ## otu_table()   OTU Table:         [ 127 taxa and 18 samples ]
     ## sample_data() Sample Data:       [ 18 samples by 3 sample variables ]
-    ## tax_table()   Taxonomy Table:    [ 129 taxa by 7 taxonomic ranks ]
+    ## tax_table()   Taxonomy Table:    [ 127 taxa by 7 taxonomic ranks ]
 
 ``` r
 plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
@@ -895,9 +950,9 @@ ps2
 ```
 
     ## phyloseq-class experiment-level object
-    ## otu_table()   OTU Table:         [ 272 taxa and 18 samples ]
+    ## otu_table()   OTU Table:         [ 275 taxa and 18 samples ]
     ## sample_data() Sample Data:       [ 18 samples by 3 sample variables ]
-    ## tax_table()   Taxonomy Table:    [ 272 taxa by 7 taxonomic ranks ]
+    ## tax_table()   Taxonomy Table:    [ 275 taxa by 7 taxonomic ranks ]
 
 ``` r
 top20 = names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
