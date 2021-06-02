@@ -11,11 +11,10 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
 -   [Quality Control](#quality-control)
     -   [Quality Profiles](#quality-profiles)
     -   [Filtering and Trimming](#filtering-and-trimming)
--   [Learn the Error Rates](#learn-the-error-rates)
--   [Sample Inference](#sample-inference)
--   [Inspecting the returned dada-class
-    object:](#inspecting-the-returned-dada-class-object)
--   [Merge paired reads](#merge-paired-reads)
+-   [Sample Composition](#sample-composition)
+    -   [Learn Error Rates](#learn-error-rates)
+    -   [Sample Inference](#sample-inference)
+    -   [Merge Paired Reads](#merge-paired-reads)
 -   [Construct sequence table](#construct-sequence-table)
 -   [Remove chimeras](#remove-chimeras)
 -   [Track reads through the
@@ -254,9 +253,6 @@ head(sample.names)
 
 ## Quality Control
 
-Now it comes to the nuts and bolts of using **DADA2** to assess and
-control the quality of the sequence reads.
-
 ### Quality Profiles
 
 #### Forward Reads
@@ -304,7 +300,9 @@ names(reverse.filtered) = sample.names
 ```
 
 Now filter and trim using
-[`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filterAndTrim.html)
+[`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filterAndTrim.html),
+which takes input FASTQ files and generates the corresponding output
+FASTQ files.
 
 ``` r
 out = filterAndTrim(forward.original, forward.filtered, 
@@ -323,7 +321,20 @@ head(out)
 | SRR10153503\_1.fastq.gz |    13782 |     11345 |
 | SRR10153504\_1.fastq.gz |    14467 |     11425 |
 
-## Learn the Error Rates
+## Sample Composition
+
+Now it comes to the nuts and bolts of using **DADA2** in infer sample
+compsition
+
+### Learn Error Rates
+
+**DADA2** uses of a parametric error model per every amplicon dataset.
+The error learning process is performed by
+[`learnErrors`](https://rdrr.io/bioc/dada2/man/learnErrors.html) from
+the *data*. The approach is to alternate the estimation of the error
+rates and the inference of sample composition until the two converge.
+
+#### Forward Reads Errors
 
 ``` r
 forward.errors = learnErrors(forward.filtered, multithread = TRUE)
@@ -332,28 +343,36 @@ forward.errors = learnErrors(forward.filtered, multithread = TRUE)
     ## 45461505 total bases in 190008 reads from 18 samples will be used for learning the error rates.
 
 ``` r
+plotErrors(forward.errors, nominalQ = TRUE) # Plot observed frequency of each transition
+```
+
+![](ALS_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+#### Reverse Reads Errors
+
+``` r
 reverse.errors = learnErrors(reverse.filtered, multithread = TRUE)
 ```
 
     ## 39575151 total bases in 190008 reads from 18 samples will be used for learning the error rates.
 
 ``` r
-plotErrors(forward.errors, nominalQ=TRUE)
+plotErrors(reverse.errors, nominalQ = TRUE) # Plot observed frequency of each transition
 ```
 
-    ## Warning: Transformation introduced infinite values in continuous y-axis
+![](ALS_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
-    ## Warning: Transformation introduced infinite values in continuous y-axis
+### Sample Inference
 
-![](ALS_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+Now it is time to apply the sample inference algorithm, not surprisingly
+the method is called [`dada`](https://rdrr.io/bioc/dada2/man/dada.html)
+:wink: The method removes all estimated errors from the filtered
+sequence reads and estimates the composition of each sample.
 
-## Sample Inference
-
-We are now ready to apply the core sample inference algorithm to the
-filtered and trimmed sequence data.
+#### Forward Sample Inference
 
 ``` r
-dadaFs = dada(forward.filtered, err=forward.errors, multithread=TRUE)
+forward.dada = dada(forward.filtered, err = forward.errors, multithread = TRUE)
 ```
 
     ## Sample 1 - 9907 reads in 4306 unique sequences.
@@ -376,7 +395,43 @@ dadaFs = dada(forward.filtered, err=forward.errors, multithread=TRUE)
     ## Sample 18 - 12018 reads in 5879 unique sequences.
 
 ``` r
-dadaRs = dada(reverse.filtered, err=reverse.errors, multithread=TRUE)
+head(forward.dada)
+```
+
+    ## $SRR10153499
+    ## dada-class: object describing DADA2 denoising results
+    ## 63 sequence variants were inferred from 4306 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153500
+    ## dada-class: object describing DADA2 denoising results
+    ## 124 sequence variants were inferred from 6598 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153501
+    ## dada-class: object describing DADA2 denoising results
+    ## 94 sequence variants were inferred from 6130 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153502
+    ## dada-class: object describing DADA2 denoising results
+    ## 78 sequence variants were inferred from 4869 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153503
+    ## dada-class: object describing DADA2 denoising results
+    ## 78 sequence variants were inferred from 5462 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153504
+    ## dada-class: object describing DADA2 denoising results
+    ## 102 sequence variants were inferred from 6348 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+
+#### Reverse Sample Inference
+
+``` r
+reverse.dada = dada(reverse.filtered, err = reverse.errors, multithread = TRUE)
 ```
 
     ## Sample 1 - 9907 reads in 6084 unique sequences.
@@ -398,25 +453,41 @@ dadaRs = dada(reverse.filtered, err=reverse.errors, multithread=TRUE)
     ## Sample 17 - 10429 reads in 5279 unique sequences.
     ## Sample 18 - 12018 reads in 7587 unique sequences.
 
-## Inspecting the returned dada-class object:
-
 ``` r
-dadaFs[[1]]
+head(reverse.dada)
 ```
 
-    ## dada-class: object describing DADA2 denoising results
-    ## 63 sequence variants were inferred from 4306 input unique sequences.
-    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
-
-``` r
-dadaRs[[1]]
-```
-
+    ## $SRR10153499
     ## dada-class: object describing DADA2 denoising results
     ## 36 sequence variants were inferred from 6084 input unique sequences.
     ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153500
+    ## dada-class: object describing DADA2 denoising results
+    ## 70 sequence variants were inferred from 8328 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153501
+    ## dada-class: object describing DADA2 denoising results
+    ## 65 sequence variants were inferred from 8002 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153502
+    ## dada-class: object describing DADA2 denoising results
+    ## 33 sequence variants were inferred from 6397 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153503
+    ## dada-class: object describing DADA2 denoising results
+    ## 43 sequence variants were inferred from 7343 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
+    ## 
+    ## $SRR10153504
+    ## dada-class: object describing DADA2 denoising results
+    ## 58 sequence variants were inferred from 7901 input unique sequences.
+    ## Key parameters: OMEGA_A = 1e-40, OMEGA_C = 1e-40, BAND_SIZE = 16
 
-## Merge paired reads
+### Merge Paired Reads
 
 We now merge the forward and reverse reads together to obtain the full
 denoised sequences. Merging is performed by aligning the denoised
@@ -428,7 +499,7 @@ the overlap region (but these conditions can be changed via function
 arguments).
 
 ``` r
-mergers = mergePairs(dadaFs, forward.filtered, dadaRs, reverse.filtered, verbose=TRUE)
+mergers = mergePairs(forward.dada, forward.filtered, reverse.dada, reverse.filtered, verbose = TRUE)
 ```
 
     ## 8188 paired-reads (in 34 unique pairings) successfully merged out of 9583 (in 101 pairings) input.
@@ -482,8 +553,7 @@ mergers = mergePairs(dadaFs, forward.filtered, dadaRs, reverse.filtered, verbose
     ## Duplicate sequences in merged output.
 
 ``` r
-# Inspect the merger data.frame from the first sample
-head(mergers[[1]])
+head(mergers[[1]]) # Inspect the merger data.frame from the first sample
 ```
 
 | sequence                                                                                                                                                                                                                                                      | abundance | forward | reverse | nmatch | nmismatch | nindel | prefer | accept |
@@ -595,7 +665,7 @@ made it through each step in the pipeline:
 
 ``` r
 getN = function(x) sum(getUniques(x))
-track = cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+track = cbind(out, sapply(forward.dada, getN), sapply(reverse.dada, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
 ```
 
     ## Duplicate sequences detected and merged.
@@ -607,7 +677,7 @@ track = cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, g
     ## Duplicate sequences detected and merged.
 
 ``` r
-# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(forward.dada, getN) with getN(forward.dada)
 colnames(track) = c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
 rownames(track) = sample.names
 head(track)
@@ -828,7 +898,7 @@ plot_richness(ps, x="status", measures=c("Shannon", "Simpson"), color = "pair")
     ## 
     ## We recommended that you find the un-trimmed data and retry.
 
-![](ALS_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
 
 No obvious systematic difference in alpha-diversity between early and
 late samples.
@@ -847,45 +917,45 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.1679988 
+    ## Run 1 stress 0.1679989 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1812005  max resid 0.6581558 
-    ## Run 2 stress 0.1677132 
+    ## ... Procrustes: rmse 0.1812511  max resid 0.6583367 
+    ## Run 2 stress 0.1954997 
+    ## Run 3 stress 0.1889447 
+    ## Run 4 stress 0.1679988 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.01859214  max resid 0.06115439 
-    ## Run 3 stress 0.1797132 
-    ## Run 4 stress 0.1677134 
-    ## ... Procrustes: rmse 0.0004590098  max resid 0.00161085 
+    ## ... Procrustes: rmse 7.857409e-05  max resid 0.0002741516 
     ## ... Similar to previous best
-    ## Run 5 stress 0.1741992 
-    ## Run 6 stress 0.186576 
-    ## Run 7 stress 0.1677132 
-    ## ... Procrustes: rmse 0.0002450044  max resid 0.0008590723 
+    ## Run 5 stress 0.1834108 
+    ## Run 6 stress 0.1695195 
+    ## Run 7 stress 0.1754069 
+    ## Run 8 stress 0.1677135 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.01850366  max resid 0.06075581 
+    ## Run 9 stress 0.1695194 
+    ## Run 10 stress 0.1808856 
+    ## Run 11 stress 0.1679987 
+    ## ... Procrustes: rmse 0.01848142  max resid 0.0606022 
+    ## Run 12 stress 0.1677132 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.0003303425  max resid 0.001159284 
     ## ... Similar to previous best
-    ## Run 8 stress 0.1677136 
-    ## ... Procrustes: rmse 0.0003942863  max resid 0.001382673 
-    ## ... Similar to previous best
-    ## Run 9 stress 0.1693584 
-    ## Run 10 stress 0.1693976 
-    ## Run 11 stress 0.188559 
-    ## Run 12 stress 0.1828827 
-    ## Run 13 stress 0.1990286 
-    ## Run 14 stress 0.1784212 
-    ## Run 15 stress 0.1797133 
-    ## Run 16 stress 0.1889447 
-    ## Run 17 stress 0.1741992 
-    ## Run 18 stress 0.1892393 
-    ## Run 19 stress 0.2066747 
-    ## Run 20 stress 0.1677135 
-    ## ... Procrustes: rmse 0.0004973478  max resid 0.001745415 
-    ## ... Similar to previous best
+    ## Run 13 stress 0.1679989 
+    ## ... Procrustes: rmse 0.01858254  max resid 0.06104312 
+    ## Run 14 stress 0.2019524 
+    ## Run 15 stress 0.1741992 
+    ## Run 16 stress 0.1693585 
+    ## Run 17 stress 0.1766463 
+    ## Run 18 stress 0.1965152 
+    ## Run 19 stress 0.2539822 
+    ## Run 20 stress 0.1885589 
     ## *** Solution reached
 
 ``` r
 plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_point(size = 3)
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
 
 Ordination picks out a clear separation between the early and late
 samples.
@@ -916,13 +986,13 @@ ps_filtered
 plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
 ``` r
 plot_bar(ps_norm, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
 
 Normalize number of reads in each sample using median sequencing depth.
 
@@ -946,4 +1016,4 @@ ps.top20 = prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->

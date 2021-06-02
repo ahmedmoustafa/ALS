@@ -111,8 +111,6 @@ head(sample.names)
 
 ## Quality Control
 
-Now it comes to the nuts and bolts of using **DADA2** to assess and control the quality of the sequence reads.
-
 ### Quality Profiles
 
 #### Forward Reads
@@ -145,7 +143,8 @@ names(forward.filtered) = sample.names
 names(reverse.filtered) = sample.names
 ```
 
-Now filter and trim using [`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filterAndTrim.html)
+Now filter and trim using [`filterAndTrim`](https://rdrr.io/bioc/dada2/man/filterAndTrim.html), which takes input FASTQ files and generates the corresponding output FASTQ files.
+
 
 ```{r}
 out = filterAndTrim(forward.original, forward.filtered, 
@@ -155,44 +154,54 @@ out = filterAndTrim(forward.original, forward.filtered,
 head(out)
 ```
 
-## Learn the Error Rates
+## Sample Composition
 
-```{r}
+Now it comes to the nuts and bolts of using **DADA2** in infer sample compsition
+
+### Learn Error Rates
+
+**DADA2** uses of a parametric error model per every amplicon dataset. The error learning process is performed by [`learnErrors`](https://rdrr.io/bioc/dada2/man/learnErrors.html) from the *data*. The approach is to alternate the estimation of the error rates and the inference of sample composition until the two converge.
+
+#### Forward Reads Errors
+
+```{r warning=FALSE}
 forward.errors = learnErrors(forward.filtered, multithread = TRUE)
+plotErrors(forward.errors, nominalQ = TRUE) # Plot observed frequency of each transition
+```
+
+#### Reverse Reads Errors
+
+```{r warning=FALSE}
 reverse.errors = learnErrors(reverse.filtered, multithread = TRUE)
-
-plotErrors(forward.errors, nominalQ=TRUE)
+plotErrors(reverse.errors, nominalQ = TRUE) # Plot observed frequency of each transition
 ```
 
-## Sample Inference
-We are now ready to apply the core sample inference algorithm to the filtered and trimmed sequence data.
-```{r}
-dadaFs = dada(forward.filtered, err=forward.errors, multithread=TRUE)
-```
+### Sample Inference
 
-```{r}
-dadaRs = dada(reverse.filtered, err=reverse.errors, multithread=TRUE)
-```
+Now it is time to apply the sample inference algorithm, not surprisingly the method is called [`dada`](https://rdrr.io/bioc/dada2/man/dada.html) :wink: The method removes all estimated errors from the filtered sequence reads and estimates the composition of each sample.
 
-## Inspecting the returned dada-class object:
+#### Forward Sample Inference
 
 ```{r}
-dadaFs[[1]]
+forward.dada = dada(forward.filtered, err = forward.errors, multithread = TRUE)
+head(forward.dada)
 ```
+
+#### Reverse Sample Inference
 
 ```{r}
-dadaRs[[1]]
+reverse.dada = dada(reverse.filtered, err = reverse.errors, multithread = TRUE)
+head(reverse.dada)
 ```
 
-## Merge paired reads
+### Merge Paired Reads
 
 We now merge the forward and reverse reads together to obtain the full denoised sequences. Merging is performed by aligning the denoised forward reads with the reverse-complement of the corresponding denoised reverse reads, and then constructing the merged “contig” sequences. By default, merged sequences are only output if the forward and reverse reads overlap by at least 12 bases, and are identical to each other in the overlap region (but these conditions can be changed via function arguments).
 
 
 ```{r}
-mergers = mergePairs(dadaFs, forward.filtered, dadaRs, reverse.filtered, verbose=TRUE)
-# Inspect the merger data.frame from the first sample
-head(mergers[[1]])
+mergers = mergePairs(forward.dada, forward.filtered, reverse.dada, reverse.filtered, verbose = TRUE)
+head(mergers[[1]]) # Inspect the merger data.frame from the first sample
 ```
 
 The `mergers` object is a list of data.frames from each sample. Each data.frame contains the merged `sequence`, its `abundance`, and the indices of the `forward` and `reverse` sequence variants that were merged. Paired reads that did not exactly overlap were removed by `mergePairs`, further reducing spurious output.
@@ -235,8 +244,8 @@ As a final check of our progress, we’ll look at the number of reads that made 
 
 ```{r}
 getN = function(x) sum(getUniques(x))
-track = cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
-# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+track = cbind(out, sapply(forward.dada, getN), sapply(reverse.dada, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(forward.dada, getN) with getN(forward.dada)
 colnames(track) = c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
 rownames(track) = sample.names
 head(track)
