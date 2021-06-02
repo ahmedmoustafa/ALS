@@ -365,9 +365,10 @@ plotErrors(reverse.errors, nominalQ = TRUE) # Plot observed frequency of each tr
 ### Sample Inference
 
 Now it is time to apply the sample inference algorithm, not surprisingly
-the method is called [`dada`](https://rdrr.io/bioc/dada2/man/dada.html)
-:wink: The method removes all estimated errors from the filtered
-sequence reads and estimates the composition of each sample.
+the main method is called
+[`dada`](https://rdrr.io/bioc/dada2/man/dada.html) :wink: This method
+removes all estimated errors from the filtered sequence reads and
+estimates the composition of each sample.
 
 #### Forward Sample Inference
 
@@ -489,14 +490,12 @@ head(reverse.dada)
 
 ### Merge Paired Reads
 
-We now merge the forward and reverse reads together to obtain the full
-denoised sequences. Merging is performed by aligning the denoised
-forward reads with the reverse-complement of the corresponding denoised
-reverse reads, and then constructing the merged “contig” sequences. By
-default, merged sequences are only output if the forward and reverse
-reads overlap by at least 12 bases, and are identical to each other in
-the overlap region (but these conditions can be changed via function
-arguments).
+Now the denoised forward and reverse mates of the paired-end reads are
+merged into full sequences using
+[`mergePairs`](https://rdrr.io/bioc/dada2/man/mergePairs.html). To
+merge, the reverse read is *reverse complemented* and aligned to the
+forward read. And paired reads that do not overlap exactly are removed
+from the merged output.
 
 ``` r
 mergers = mergePairs(forward.dada, forward.filtered, reverse.dada, reverse.filtered, verbose = TRUE)
@@ -553,7 +552,7 @@ mergers = mergePairs(forward.dada, forward.filtered, reverse.dada, reverse.filte
     ## Duplicate sequences in merged output.
 
 ``` r
-head(mergers[[1]]) # Inspect the merger data.frame from the first sample
+head(mergers[[1]]) # Inspect the merger data.frame of the first sample
 ```
 
 | sequence                                                                                                                                                                                                                                                      | abundance | forward | reverse | nmatch | nmismatch | nindel | prefer | accept |
@@ -565,11 +564,20 @@ head(mergers[[1]]) # Inspect the merger data.frame from the first sample
 | TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCTGTCTATTAAGCGTGTTGTGAAATATACCGGCTCAACCGGTGGCTTGCAGCGCGAACTGGTCGACTTGAGTATGCAGGAAGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGACGAACTCCGATTGCGCAGGCAGCTTACTGTAGCATAACTGACGCTGATGCTCGAAAGTGCGGGTATCAAACAGG |       435 |      10 |      33 |    247 |         0 |      0 |      1 | TRUE   |
 | TACGTATGGAGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGGGTACGCAGGCGGTTTAATAAGTCGAATGTTAAAGATCGGGGCTCAACCCCGTAAAGCATTGGAAACTGATAAACTTGAGTAGTGGAGAGGAAAGTGGAATTCCTAGTGTAGTGGTGAAATACGTAGATATTAGGAGGAATACCAGTAGCGAAGGCGACTTTCTGGACACAAACTGACGCTGAGGTACGAAAGCGTGGGGAGCAAACAGG  |       404 |       5 |       5 |    250 |         0 |      0 |      2 | TRUE   |
 
-The `mergers` object is a list of data.frames from each sample. Each
-data.frame contains the merged `sequence`, its `abundance`, and the
-indices of the `forward` and `reverse` sequence variants that were
-merged. Paired reads that did not exactly overlap were removed by
-`mergePairs`, further reducing spurious output.
+From the documentation:
+
+The return `data.frame`(s) has a row for each unique pairing of
+forward/reverse denoised sequences, and the following columns: -
+`$abundance`: Number of reads corresponding to this forward/reverse
+combination. - `$sequence`: The merged sequence. - `$forward`: The index
+of the forward denoised sequence. - `$reverse`: The index of the reverse
+denoised sequence. - `$nmatch`: Number of matches nts in the overlap
+region. - `$nmismatch`: Number of mismatches in the overlap region. -
+`$nindel`: Number of indels in the overlap region. - `$prefer`: The
+sequence used for the overlap region. 1=forward; 2=reverse. - `$accept`:
+`TRUE` if overlap between forward and reverse denoised sequences was at
+least `minOverlap` and had at most `maxMismatch` differences. `FALSE`
+otherwise.
 
 ## Construct sequence table
 
@@ -917,38 +925,46 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.1679989 
+    ## Run 1 stress 0.1867397 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1812511  max resid 0.6583367 
-    ## Run 2 stress 0.1954997 
-    ## Run 3 stress 0.1889447 
-    ## Run 4 stress 0.1679988 
-    ## ... New best solution
-    ## ... Procrustes: rmse 7.857409e-05  max resid 0.0002741516 
+    ## ... Procrustes: rmse 6.009028e-06  max resid 1.006988e-05 
     ## ... Similar to previous best
-    ## Run 5 stress 0.1834108 
-    ## Run 6 stress 0.1695195 
-    ## Run 7 stress 0.1754069 
-    ## Run 8 stress 0.1677135 
+    ## Run 2 stress 0.1677138 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.01850366  max resid 0.06075581 
-    ## Run 9 stress 0.1695194 
-    ## Run 10 stress 0.1808856 
+    ## ... Procrustes: rmse 0.1794363  max resid 0.6568759 
+    ## Run 3 stress 0.1693979 
+    ## Run 4 stress 0.1677135 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.0009446687  max resid 0.003314114 
+    ## ... Similar to previous best
+    ## Run 5 stress 0.1677133 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.0005073953  max resid 0.001776198 
+    ## ... Similar to previous best
+    ## Run 6 stress 0.1808857 
+    ## Run 7 stress 0.1677134 
+    ## ... Procrustes: rmse 0.0004758543  max resid 0.001669044 
+    ## ... Similar to previous best
+    ## Run 8 stress 0.1828827 
+    ## Run 9 stress 0.2785952 
+    ## Run 10 stress 0.1741992 
     ## Run 11 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01848142  max resid 0.0606022 
-    ## Run 12 stress 0.1677132 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.0003303425  max resid 0.001159284 
+    ## ... Procrustes: rmse 0.01858957  max resid 0.06108918 
+    ## Run 12 stress 0.1677133 
+    ## ... Procrustes: rmse 0.0001652923  max resid 0.0005756628 
     ## ... Similar to previous best
-    ## Run 13 stress 0.1679989 
-    ## ... Procrustes: rmse 0.01858254  max resid 0.06104312 
-    ## Run 14 stress 0.2019524 
-    ## Run 15 stress 0.1741992 
-    ## Run 16 stress 0.1693585 
-    ## Run 17 stress 0.1766463 
-    ## Run 18 stress 0.1965152 
-    ## Run 19 stress 0.2539822 
-    ## Run 20 stress 0.1885589 
+    ## Run 13 stress 0.1693981 
+    ## Run 14 stress 0.1679987 
+    ## ... Procrustes: rmse 0.01857719  max resid 0.06104153 
+    ## Run 15 stress 0.1677133 
+    ## ... Procrustes: rmse 0.0004353504  max resid 0.001526656 
+    ## ... Similar to previous best
+    ## Run 16 stress 0.1959592 
+    ## Run 17 stress 0.1867506 
+    ## Run 18 stress 0.1766462 
+    ## Run 19 stress 0.1679987 
+    ## ... Procrustes: rmse 0.01858628  max resid 0.06107683 
+    ## Run 20 stress 0.1834097 
     ## *** Solution reached
 
 ``` r

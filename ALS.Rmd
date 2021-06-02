@@ -178,7 +178,7 @@ plotErrors(reverse.errors, nominalQ = TRUE) # Plot observed frequency of each tr
 
 ### Sample Inference
 
-Now it is time to apply the sample inference algorithm, not surprisingly the method is called [`dada`](https://rdrr.io/bioc/dada2/man/dada.html) :wink: The method removes all estimated errors from the filtered sequence reads and estimates the composition of each sample.
+Now it is time to apply the sample inference algorithm, not surprisingly the main method is called [`dada`](https://rdrr.io/bioc/dada2/man/dada.html) :wink: This method removes all estimated errors from the filtered sequence reads and estimates the composition of each sample.
 
 #### Forward Sample Inference
 
@@ -196,15 +196,25 @@ head(reverse.dada)
 
 ### Merge Paired Reads
 
-We now merge the forward and reverse reads together to obtain the full denoised sequences. Merging is performed by aligning the denoised forward reads with the reverse-complement of the corresponding denoised reverse reads, and then constructing the merged “contig” sequences. By default, merged sequences are only output if the forward and reverse reads overlap by at least 12 bases, and are identical to each other in the overlap region (but these conditions can be changed via function arguments).
-
+Now the denoised forward and reverse mates of the paired-end reads are merged into full sequences using [`mergePairs`](https://rdrr.io/bioc/dada2/man/mergePairs.html). To merge, the reverse read is *reverse complemented* and aligned to the forward read. And paired reads that do not overlap exactly are removed from the merged output.
 
 ```{r}
 mergers = mergePairs(forward.dada, forward.filtered, reverse.dada, reverse.filtered, verbose = TRUE)
-head(mergers[[1]]) # Inspect the merger data.frame from the first sample
+head(mergers[[1]]) # Inspect the merger data.frame of the first sample
 ```
 
-The `mergers` object is a list of data.frames from each sample. Each data.frame contains the merged `sequence`, its `abundance`, and the indices of the `forward` and `reverse` sequence variants that were merged. Paired reads that did not exactly overlap were removed by `mergePairs`, further reducing spurious output.
+From the documentation:
+
+The return `data.frame`(s) has a row for each unique pairing of forward/reverse denoised sequences, and the following columns:
+- `$abundance`: Number of reads corresponding to this forward/reverse combination.
+- `$sequence`: The merged sequence.
+- `$forward`: The index of the forward denoised sequence.
+- `$reverse`: The index of the reverse denoised sequence.
+- `$nmatch`: Number of matches nts in the overlap region.
+- `$nmismatch`: Number of mismatches in the overlap region.
+- `$nindel`: Number of indels in the overlap region.
+- `$prefer`: The sequence used for the overlap region. 1=forward; 2=reverse.
+- `$accept`: `TRUE` if overlap between forward and reverse denoised sequences was at least `minOverlap` and had at most `maxMismatch` differences. `FALSE` otherwise.
 
 ## Construct sequence table
 We can now construct an amplicon sequence variant table (ASV) table, a higher-resolution version of the OTU table produced by traditional methods.
