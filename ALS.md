@@ -564,20 +564,24 @@ head(mergers[[1]]) # Inspect the merger data.frame of the first sample
 | TACGGAAGGTCCGGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGCGTAGGCTGTCTATTAAGCGTGTTGTGAAATATACCGGCTCAACCGGTGGCTTGCAGCGCGAACTGGTCGACTTGAGTATGCAGGAAGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGACGAACTCCGATTGCGCAGGCAGCTTACTGTAGCATAACTGACGCTGATGCTCGAAAGTGCGGGTATCAAACAGG |       435 |      10 |      33 |    247 |         0 |      0 |      1 | TRUE   |
 | TACGTATGGAGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGGGTACGCAGGCGGTTTAATAAGTCGAATGTTAAAGATCGGGGCTCAACCCCGTAAAGCATTGGAAACTGATAAACTTGAGTAGTGGAGAGGAAAGTGGAATTCCTAGTGTAGTGGTGAAATACGTAGATATTAGGAGGAATACCAGTAGCGAAGGCGACTTTCTGGACACAAACTGACGCTGAGGTACGAAAGCGTGGGGAGCAAACAGG  |       404 |       5 |       5 |    250 |         0 |      0 |      2 | TRUE   |
 
-From the documentation:
+*From the documentation of the method*:
 
 The return `data.frame`(s) has a row for each unique pairing of
-forward/reverse denoised sequences, and the following columns: -
-`$abundance`: Number of reads corresponding to this forward/reverse
-combination. - `$sequence`: The merged sequence. - `$forward`: The index
-of the forward denoised sequence. - `$reverse`: The index of the reverse
-denoised sequence. - `$nmatch`: Number of matches nts in the overlap
-region. - `$nmismatch`: Number of mismatches in the overlap region. -
-`$nindel`: Number of indels in the overlap region. - `$prefer`: The
-sequence used for the overlap region. 1=forward; 2=reverse. - `$accept`:
-`TRUE` if overlap between forward and reverse denoised sequences was at
-least `minOverlap` and had at most `maxMismatch` differences. `FALSE`
-otherwise.
+forward/reverse denoised sequences, and the following columns:
+
+-   `$abundance`: Number of reads corresponding to this forward/reverse
+    combination.
+-   `$sequence`: The merged sequence.
+-   `$forward`: The index of the forward denoised sequence.
+-   `$reverse`: The index of the reverse denoised sequence.
+-   `$nmatch`: Number of matches nts in the overlap region.
+-   `$nmismatch`: Number of mismatches in the overlap region.
+-   `$nindel`: Number of indels in the overlap region.
+-   `$prefer`: The sequence used for the overlap region. 1=forward;
+    2=reverse.
+-   `$accept`: `TRUE` if overlap between forward and reverse denoised
+    sequences was at least `minOverlap` and had at most `maxMismatch`
+    differences. `FALSE` otherwise.
 
 ## Construct sequence table
 
@@ -925,46 +929,46 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.1867397 
+    ## Run 1 stress 0.1693584 
     ## ... New best solution
-    ## ... Procrustes: rmse 6.009028e-06  max resid 1.006988e-05 
-    ## ... Similar to previous best
-    ## Run 2 stress 0.1677138 
+    ## ... Procrustes: rmse 0.1854787  max resid 0.6409006 
+    ## Run 2 stress 0.1677135 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1794363  max resid 0.6568759 
-    ## Run 3 stress 0.1693979 
-    ## Run 4 stress 0.1677135 
+    ## ... Procrustes: rmse 0.06007935  max resid 0.1830193 
+    ## Run 3 stress 0.1858194 
+    ## Run 4 stress 0.1677134 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.0009446687  max resid 0.003314114 
+    ## ... Procrustes: rmse 4.901664e-05  max resid 0.0001230841 
     ## ... Similar to previous best
-    ## Run 5 stress 0.1677133 
+    ## Run 5 stress 0.1828827 
+    ## Run 6 stress 0.1693978 
+    ## Run 7 stress 0.1774541 
+    ## Run 8 stress 0.1695194 
+    ## Run 9 stress 0.1679987 
+    ## ... Procrustes: rmse 0.01846061  max resid 0.06051624 
+    ## Run 10 stress 0.1693976 
+    ## Run 11 stress 0.1834111 
+    ## Run 12 stress 0.1693976 
+    ## Run 13 stress 0.1754069 
+    ## Run 14 stress 0.1677133 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.0005073953  max resid 0.001776198 
+    ## ... Procrustes: rmse 0.0005175558  max resid 0.001814871 
     ## ... Similar to previous best
-    ## Run 6 stress 0.1808857 
-    ## Run 7 stress 0.1677134 
-    ## ... Procrustes: rmse 0.0004758543  max resid 0.001669044 
+    ## Run 15 stress 0.1677135 
+    ## ... Procrustes: rmse 0.0001375402  max resid 0.0004785529 
     ## ... Similar to previous best
-    ## Run 8 stress 0.1828827 
-    ## Run 9 stress 0.2785952 
-    ## Run 10 stress 0.1741992 
-    ## Run 11 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01858957  max resid 0.06108918 
-    ## Run 12 stress 0.1677133 
-    ## ... Procrustes: rmse 0.0001652923  max resid 0.0005756628 
+    ## Run 16 stress 0.1677133 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.0003649764  max resid 0.001279271 
     ## ... Similar to previous best
-    ## Run 13 stress 0.1693981 
-    ## Run 14 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01857719  max resid 0.06104153 
-    ## Run 15 stress 0.1677133 
-    ## ... Procrustes: rmse 0.0004353504  max resid 0.001526656 
+    ## Run 17 stress 0.1826302 
+    ## Run 18 stress 0.1677132 
+    ## ... New best solution
+    ## ... Procrustes: rmse 0.0001016  max resid 0.0003519119 
     ## ... Similar to previous best
-    ## Run 16 stress 0.1959592 
-    ## Run 17 stress 0.1867506 
-    ## Run 18 stress 0.1766462 
     ## Run 19 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01858628  max resid 0.06107683 
-    ## Run 20 stress 0.1834097 
+    ## ... Procrustes: rmse 0.01855381  max resid 0.06093145 
+    ## Run 20 stress 0.1889447 
     ## *** Solution reached
 
 ``` r

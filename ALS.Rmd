@@ -203,18 +203,19 @@ mergers = mergePairs(forward.dada, forward.filtered, reverse.dada, reverse.filte
 head(mergers[[1]]) # Inspect the merger data.frame of the first sample
 ```
 
-From the documentation:
+*From the documentation of the method*:
 
 The return `data.frame`(s) has a row for each unique pairing of forward/reverse denoised sequences, and the following columns:
-- `$abundance`: Number of reads corresponding to this forward/reverse combination.
-- `$sequence`: The merged sequence.
-- `$forward`: The index of the forward denoised sequence.
-- `$reverse`: The index of the reverse denoised sequence.
-- `$nmatch`: Number of matches nts in the overlap region.
-- `$nmismatch`: Number of mismatches in the overlap region.
-- `$nindel`: Number of indels in the overlap region.
-- `$prefer`: The sequence used for the overlap region. 1=forward; 2=reverse.
-- `$accept`: `TRUE` if overlap between forward and reverse denoised sequences was at least `minOverlap` and had at most `maxMismatch` differences. `FALSE` otherwise.
+
+ - `$abundance`: Number of reads corresponding to this forward/reverse combination.
+ - `$sequence`: The merged sequence.
+ - `$forward`: The index of the forward denoised sequence.
+ - `$reverse`: The index of the reverse denoised sequence.
+ - `$nmatch`: Number of matches nts in the overlap region.
+ - `$nmismatch`: Number of mismatches in the overlap region.
+ - `$nindel`: Number of indels in the overlap region.
+ - `$prefer`: The sequence used for the overlap region. 1=forward; 2=reverse.
+ - `$accept`: `TRUE` if overlap between forward and reverse denoised sequences was at least `minOverlap` and had at most `maxMismatch` differences. `FALSE` otherwise.
 
 ## Construct sequence table
 We can now construct an amplicon sequence variant table (ASV) table, a higher-resolution version of the OTU table produced by traditional methods.
