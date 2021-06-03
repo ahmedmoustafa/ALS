@@ -217,40 +217,58 @@ The return `data.frame`(s) has a row for each unique pairing of forward/reverse 
  - `$prefer`: The sequence used for the overlap region. 1=forward; 2=reverse.
  - `$accept`: `TRUE` if overlap between forward and reverse denoised sequences was at least `minOverlap` and had at most `maxMismatch` differences. `FALSE` otherwise.
 
-## Construct sequence table
-We can now construct an amplicon sequence variant table (ASV) table, a higher-resolution version of the OTU table produced by traditional methods.
+## Construct Sequence Table
+
+<a href="https://en.wikipedia.org/wiki/Amplicon_sequence_variant"><img src="https://upload.wikimedia.org/wikipedia/commons/8/8f/ASVs_vs_OTU.png" title="ASVs vs OTUs by Benjamin John Callahan" align="right" width="300px"></a>
+
+We are almost there! Now we can build the [amplicon sequence variant](https://en.wikipedia.org/wiki/Amplicon_sequence_variant) ([ASV](https://en.wikipedia.org/wiki/Amplicon_sequence_variant)) table. The ASV (DADA2's) approach provides more precise, tractable, reproducible, and comprehensive estimate of samples composition compared to the traditional [operational taxonomic unit](https://en.wikipedia.org/wiki/Operational_taxonomic_unit) ([OTU](https://en.wikipedia.org/wiki/Operational_taxonomic_unit)) approach. For more on the topic, read the [microbiome informatics: OTU vs. ASV](https://www.zymoresearch.com/blogs/blog/microbiome-informatics-otu-vs-asv) blog post by [Zymo Research](https://www.zymoresearch.com/).
+
+The construction of the ASV table is performed using the [`makeSequenceTable`](https://rdrr.io/bioc/dada2/man/makeSequenceTable.html), which takes the list of samples `data.frame`s , each of which is a list of the ASVs and their abundances, then it identifies the unique ASVs across all samples.
 
 ```{r}
 seqtab = makeSequenceTable(mergers)
+```
+
+The dimensions of the generated sequences (ASVs) table are:
+
+```{r}
 dim(seqtab)
 ```
 
-```{r}
-# Inspect distribution of sequence lengths
-table(nchar(getSequences(seqtab)))
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+m1 = nrow(seqtab)
+n1 = ncol(seqtab)
 ```
 
-The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants. This table contains 293 ASVs, and the lengths of our merged sequences all fall within the expected range for this V4 amplicon.
+As shown above, the dimensions of the `seqtab` `matrix` are `r m1` $\times$ `r n1`, indicating that there are `r n1` unique ASVs across the `r m1` processed samples.
 
-*Considerations for your own data:* Sequences that are much longer or shorter than expected may be the result of non-specific priming. You can remove non-target-length sequences from your sequence table (eg. `seqtab2 = seqtab[,nchar(colnames(seqtab)) %in% 250:256]`). This is analogous to “cutting a band” in-silico to get amplicons of the targeted length.
+## Removal of Chimeras
 
-## Remove chimeras
-The core `dada` method corrects substitution and indel errors, but chimeras remain. Fortunately, the accuracy of sequence variants after denoising makes identifying chimeric ASVs simpler than when dealing with fuzzy OTUs. Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant “parent” sequences.
+<img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/Chimera_Apulia_Louvre_K362.jpg" title="Chimera Apulia Louvre" align="right" width="200px">
+
+ASVs constructed from two parents (*bimera*) can now be identified and removed from the denoised ASVs using the [`removeBimeraDenovo`](https://rdrr.io/bioc/dada2/man/removeBimeraDenovo.html) method:
 
 ```{r}
-seqtab.nochim = removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+seqtab.nochim = removeBimeraDenovo(seqtab,
+                                   multithread = TRUE,
+                                   verbose = TRUE)
+```
+
+After the removal of the bimeras (chimeric sequences), the final dimensions of the ASVs table are:
+
+```{r}
 dim(seqtab.nochim)
 ```
 
-```{r}
-sum(seqtab.nochim)/sum(seqtab)
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+m2 = nrow(seqtab.nochim)
+n2 = ncol(seqtab.nochim)
 ```
 
-The frequency of chimeric sequences varies substantially from dataset to dataset, and depends on on factors including experimental procedures and sample complexity. Here chimeras make up about 21% of the merged sequence variants, but when we account for the abundances of those variants we see they account for only about 4% of the merged sequence reads.
-
-*Considerations for your own data:* Most of your reads should remain after chimera removal (it is not uncommon for a majority of sequence variants to be removed though). If most of your reads were removed as chimeric, upstream processing may need to be revisited. In almost all cases this is caused by primer sequences with ambiguous nucleotides that were not removed prior to beginning the DADA2 pipeline.
+`r m2` $\times$ `r n2`, so  `r n1 - n2` bimeras were identified and removed. Thus, the remaining (non-chimeric) ASVs (overall; not only the unique) after the removal the bimeras is `r scales::percent(sum(seqtab.nochim)/sum(seqtab))`
 
 ## Track reads through the pipeline
+
 As a final check of our progress, we’ll look at the number of reads that made it through each step in the pipeline:
 
 ```{r}

@@ -15,8 +15,8 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
     -   [Learn Error Rates](#learn-error-rates)
     -   [Sample Inference](#sample-inference)
     -   [Merge Paired Reads](#merge-paired-reads)
--   [Construct sequence table](#construct-sequence-table)
--   [Remove chimeras](#remove-chimeras)
+-   [Construct Sequence Table](#construct-sequence-table)
+-   [Removal of Chimeras](#removal-of-chimeras)
 -   [Track reads through the
     pipeline](#track-reads-through-the-pipeline)
 -   [Taxonomic Classification](#taxonomic-classification)
@@ -583,11 +583,27 @@ forward/reverse denoised sequences, and the following columns:
     sequences was at least `minOverlap` and had at most `maxMismatch`
     differences. `FALSE` otherwise.
 
-## Construct sequence table
+## Construct Sequence Table
 
-We can now construct an amplicon sequence variant table (ASV) table, a
-higher-resolution version of the OTU table produced by traditional
-methods.
+<a href="https://en.wikipedia.org/wiki/Amplicon_sequence_variant"><img src="https://upload.wikimedia.org/wikipedia/commons/8/8f/ASVs_vs_OTU.png" title="ASVs vs OTUs by Benjamin John Callahan" align="right" width="300px"></a>
+
+We are almost there! Now we can build the [amplicon sequence
+variant](https://en.wikipedia.org/wiki/Amplicon_sequence_variant)
+([ASV](https://en.wikipedia.org/wiki/Amplicon_sequence_variant)) table.
+The ASV (DADA2’s) approach provides more precise, tractable,
+reproducible, and comprehensive estimate of samples composition compared
+to the traditional [operational taxonomic
+unit](https://en.wikipedia.org/wiki/Operational_taxonomic_unit)
+([OTU](https://en.wikipedia.org/wiki/Operational_taxonomic_unit))
+approach. For more on the topic, read the [microbiome informatics: OTU
+vs. ASV](https://www.zymoresearch.com/blogs/blog/microbiome-informatics-otu-vs-asv)
+blog post by [Zymo Research](https://www.zymoresearch.com/).
+
+The construction of the ASV table is performed using the
+[`makeSequenceTable`](https://rdrr.io/bioc/dada2/man/makeSequenceTable.html),
+which takes the list of samples `data.frame`s , each of which is a list
+of the ASVs and their abundances, then it identifies the unique ASVs
+across all samples.
 
 ``` r
 seqtab = makeSequenceTable(mergers)
@@ -601,48 +617,37 @@ seqtab = makeSequenceTable(mergers)
     ## Duplicate sequences detected and merged.
     ## Duplicate sequences detected and merged.
 
+The dimensions of the generated sequences (ASVs) table are:
+
 ``` r
 dim(seqtab)
 ```
 
     ## [1]  18 293
 
-``` r
-# Inspect distribution of sequence lengths
-table(nchar(getSequences(seqtab)))
-```
+As shown above, the dimensions of the `seqtab` `matrix` are 18 × 293,
+indicating that there are 293 unique ASVs across the 18 processed
+samples.
 
-| 252 | 253 | 254 |
-|----:|----:|----:|
-|  56 | 229 |   8 |
+## Removal of Chimeras
 
-The sequence table is a `matrix` with rows corresponding to (and named
-by) the samples, and columns corresponding to (and named by) the
-sequence variants. This table contains 293 ASVs, and the lengths of our
-merged sequences all fall within the expected range for this V4
-amplicon.
+<img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/Chimera_Apulia_Louvre_K362.jpg" title="Chimera Apulia Louvre" align="right" width="200px">
 
-*Considerations for your own data:* Sequences that are much longer or
-shorter than expected may be the result of non-specific priming. You can
-remove non-target-length sequences from your sequence table (eg.
-`seqtab2 = seqtab[,nchar(colnames(seqtab)) %in% 250:256]`). This is
-analogous to “cutting a band” in-silico to get amplicons of the targeted
-length.
-
-## Remove chimeras
-
-The core `dada` method corrects substitution and indel errors, but
-chimeras remain. Fortunately, the accuracy of sequence variants after
-denoising makes identifying chimeric ASVs simpler than when dealing with
-fuzzy OTUs. Chimeric sequences are identified if they can be exactly
-reconstructed by combining a left-segment and a right-segment from two
-more abundant “parent” sequences.
+ASVs constructed from two parents (*bimera*) can now be identified and
+removed from the denoised ASVs using the
+[`removeBimeraDenovo`](https://rdrr.io/bioc/dada2/man/removeBimeraDenovo.html)
+method:
 
 ``` r
-seqtab.nochim = removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+seqtab.nochim = removeBimeraDenovo(seqtab,
+                                   multithread = TRUE,
+                                   verbose = TRUE)
 ```
 
     ## Identified 18 bimeras out of 293 input sequences.
+
+After the removal of the bimeras (chimeric sequences), the final
+dimensions of the ASVs table are:
 
 ``` r
 dim(seqtab.nochim)
@@ -650,25 +655,9 @@ dim(seqtab.nochim)
 
     ## [1]  18 275
 
-``` r
-sum(seqtab.nochim)/sum(seqtab)
-```
-
-    ## [1] 0.9865828
-
-The frequency of chimeric sequences varies substantially from dataset to
-dataset, and depends on on factors including experimental procedures and
-sample complexity. Here chimeras make up about 21% of the merged
-sequence variants, but when we account for the abundances of those
-variants we see they account for only about 4% of the merged sequence
-reads.
-
-*Considerations for your own data:* Most of your reads should remain
-after chimera removal (it is not uncommon for a majority of sequence
-variants to be removed though). If most of your reads were removed as
-chimeric, upstream processing may need to be revisited. In almost all
-cases this is caused by primer sequences with ambiguous nucleotides that
-were not removed prior to beginning the DADA2 pipeline.
+18 × 275, so 18 bimeras were identified and removed. Thus, the remaining
+(non-chimeric) ASVs (overall; not only the unique) after the removal the
+bimeras is 99%
 
 ## Track reads through the pipeline
 
@@ -910,7 +899,7 @@ plot_richness(ps, x="status", measures=c("Shannon", "Simpson"), color = "pair")
     ## 
     ## We recommended that you find the un-trimmed data and retry.
 
-![](ALS_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
 
 No obvious systematic difference in alpha-diversity between early and
 late samples.
@@ -929,53 +918,45 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.1693584 
+    ## Run 1 stress 0.2626593 
+    ## Run 2 stress 0.1889447 
+    ## Run 3 stress 0.1693983 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1854787  max resid 0.6409006 
-    ## Run 2 stress 0.1677135 
+    ## ... Procrustes: rmse 0.1890089  max resid 0.6457535 
+    ## Run 4 stress 0.1834112 
+    ## Run 5 stress 0.1677133 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.06007935  max resid 0.1830193 
-    ## Run 3 stress 0.1858194 
-    ## Run 4 stress 0.1677134 
+    ## ... Procrustes: rmse 0.06754542  max resid 0.1806388 
+    ## Run 6 stress 0.1693974 
+    ## Run 7 stress 0.1677132 
     ## ... New best solution
-    ## ... Procrustes: rmse 4.901664e-05  max resid 0.0001230841 
+    ## ... Procrustes: rmse 0.0001367247  max resid 0.0004775398 
     ## ... Similar to previous best
-    ## Run 5 stress 0.1828827 
-    ## Run 6 stress 0.1693978 
-    ## Run 7 stress 0.1774541 
-    ## Run 8 stress 0.1695194 
-    ## Run 9 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01846061  max resid 0.06051624 
-    ## Run 10 stress 0.1693976 
-    ## Run 11 stress 0.1834111 
-    ## Run 12 stress 0.1693976 
-    ## Run 13 stress 0.1754069 
-    ## Run 14 stress 0.1677133 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.0005175558  max resid 0.001814871 
+    ## Run 8 stress 0.1677132 
+    ## ... Procrustes: rmse 0.0002202005  max resid 0.0007731691 
     ## ... Similar to previous best
-    ## Run 15 stress 0.1677135 
-    ## ... Procrustes: rmse 0.0001375402  max resid 0.0004785529 
+    ## Run 9 stress 0.1978798 
+    ## Run 10 stress 0.183413 
+    ## Run 11 stress 0.1885589 
+    ## Run 12 stress 0.1679988 
+    ## ... Procrustes: rmse 0.01861325  max resid 0.06117419 
+    ## Run 13 stress 0.1834124 
+    ## Run 14 stress 0.1693584 
+    ## Run 15 stress 0.1677136 
+    ## ... Procrustes: rmse 0.0003720208  max resid 0.001303047 
     ## ... Similar to previous best
-    ## Run 16 stress 0.1677133 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.0003649764  max resid 0.001279271 
-    ## ... Similar to previous best
-    ## Run 17 stress 0.1826302 
-    ## Run 18 stress 0.1677132 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.0001016  max resid 0.0003519119 
-    ## ... Similar to previous best
-    ## Run 19 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01855381  max resid 0.06093145 
-    ## Run 20 stress 0.1889447 
+    ## Run 16 stress 0.1808859 
+    ## Run 17 stress 0.1693975 
+    ## Run 18 stress 0.1808856 
+    ## Run 19 stress 0.1882396 
+    ## Run 20 stress 0.1921666 
     ## *** Solution reached
 
 ``` r
 plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_point(size = 3)
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
 Ordination picks out a clear separation between the early and late
 samples.
@@ -1006,13 +987,13 @@ ps_filtered
 plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 ``` r
 plot_bar(ps_norm, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
 
 Normalize number of reads in each sample using median sequencing depth.
 
@@ -1036,4 +1017,4 @@ ps.top20 = prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
