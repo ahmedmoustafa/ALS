@@ -17,12 +17,15 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
     -   [Merge Paired Reads](#merge-paired-reads)
 -   [Construct Sequence Table](#construct-sequence-table)
 -   [Removal of Chimeras](#removal-of-chimeras)
--   [Track reads through the
-    pipeline](#track-reads-through-the-pipeline)
+    -   [Track reads through the
+        pipeline](#track-reads-through-the-pipeline)
 -   [Taxonomic Classification](#taxonomic-classification)
-    -   [Assign taxonomy](#assign-taxonomy)
--   [Handoff to phyloseq](#handoff-to-phyloseq)
+    -   [Assign Taxonomy](#assign-taxonomy)
+    -   [Assign Species](#assign-species)
+    -   [Digest ASVs](#digest-asvs)
+-   [Phyloseq](#phyloseq)
     -   [Import into phyloseq:](#import-into-phyloseq)
+    -   [Ordinate:](#ordinate)
     -   [Bar plot](#bar-plot)
 
 <div align="center">
@@ -659,7 +662,7 @@ dim(seqtab.nochim)
 (non-chimeric) ASVs (overall; not only the unique) after the removal the
 bimeras is 99%
 
-## Track reads through the pipeline
+### Track reads through the pipeline
 
 As a final check of our progress, we’ll look at the number of reads that
 made it through each step in the pipeline:
@@ -696,40 +699,30 @@ head(track)
 Looks good! We kept the majority of our raw reads, and there is no
 over-large drop associated with any single step.
 
-*Considerations for your own data:* This is a great place to do a last
-**sanity check**. Outside of filtering, there should no step in which a
-majority of reads are lost. If a majority of reads failed to merge, you
-may need to revisit the `truncLen` parameter used in the filtering step
-and make sure that the truncated reads span your amplicon. If a majority
-of reads were removed as chimeric, you may need to revisit the removal
-of primers, as the ambiguous nucleotides in unremoved primers interfere
-with chimera identification.
+## Taxonomic Classification
 
-# Taxonomic Classification
+### Assign Taxonomy
 
-## Assign taxonomy
-
-It is common at this point, especially in 16S/18S/ITS amplicon
-sequencing, to assign taxonomy to the sequence variants. The DADA2
-package provides a native implementation of the [naive Bayesian
-classifier method](http://www.ncbi.nlm.nih.gov/pubmed/17586664) for this
-purpose. The `assignTaxonomy` function takes as input a set of sequences
-to be classified and a training set of reference sequences with known
-taxonomy, and outputs taxonomic assignments with at least `minBoot`
-bootstrap confidence.
-
-We maintain [formatted training fastas for the RDP training set,
-GreenGenes clustered at 97% identity, and the Silva reference
-database](https://benjjneb.github.io/dada2/training.html), and
-additional trainings fastas suitable for protists and certain specific
-environments have been contributed. For fungal taxonomy, the General
-Fasta release files from the [UNITE ITS
-database](https://unite.ut.ee/repository.php) can be used as is. To
-follow along, download the `silva_nr_v138_train_set.fa.gz` file, and
-place it in the directory with the fastq files.
+Using the [Naïve Bayesian
+Classifier](http://www.ncbi.nlm.nih.gov/pubmed/17586664) algorithm,
+**DADA2** assigns taxonomic classification to the sequence variants with
+the
+[`assignTaxonomy`](https://rdrr.io/bioc/dada2/man/assignTaxonomy.html)
+method, which takes also as input the reference formatted FASTA
+sequence. A copy of the SILVA train set is located under the
+`data/silva` subfolder, which can also be downloaded from here
+<a href="https://doi.org/10.5281/zenodo.3986799"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.3986799.svg" alt="DOI"></a>
 
 ``` r
-taxa = assignTaxonomy(seqtab.nochim, "data/silva/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
+taxa = assignTaxonomy(seqtab.nochim,
+                      "data/silva/silva_nr99_v138_train_set.fa.gz", 
+                      multithread = TRUE,
+                      verbose = TRUE)
+```
+
+    ## Finished processing reference fasta.
+
+``` r
 head(taxa)
 ```
 
@@ -742,19 +735,13 @@ head(taxa)
 | TACGTAAGGGGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGAGTGCGTAGGCGGCAAATTAAGTCAGATGTGAAAACTAAGGGCTCAACCCATAGATTGCATCTGAAACTGATATGCTTGAGTCAAGGAGAGGAAAGTGGAATTCCTAGTGTAGCGGTGGAATGCGTAGATATTAGGAGGAATACCGGTGGCGAAGGCGACTTTCTGGACTTGAACTGACGCTGAGGCACGAAAGCGTGGGGAGCAAACAGG | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            |
 | TACGGAGGGTGCAAGCGTTACTCGGAATCACTGGGCGTAAAGGGTGCGTAGGTGGATTATCAAGTCTCTTGTGAAATCTAATAGCTTAACTATTAAATTGCTTGGGAAACTGATAGTCTAGAGTAGGGGAGAGGCAGATGGAACTCTTGGTGTAGGAGTAAAATCCGTAGATATCAAGAAGAATACCTATTGCGAAAGCGATCTGCTAGAACCTAACTGACACTGATGCACGAAAGCGTGGGGAGCAAACAGG | Bacteria | Campilobacterota | Campylobacteria | Campylobacterales                   | Campylobacteraceae | Campylobacter |
 
-*Extensions*: The dada2 package also implements a method to make
-[species level assignments based on exact
-matching](https://benjjneb.github.io/dada2/assign.html#species-assignment)
-between ASVs and sequenced reference strains. Recent analysis suggests
-that [exact matching (or 100% identity) is the only appropriate way to
-assign species to 16S gene
-fragments](https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/bty113/4913809).
-Currently, [species-assignment training fastas are available for the
-Silva and RDP 16S
-databases](https://benjjneb.github.io/dada2/training.html). To follow
-the optional species addition step, download the
-`silva_species_assignment_v138.fa.gz` file, and place it in the
-directory with the fastq files.
+### Assign Species
+
+In additional to above taxonomic classification, *DADA2* can also assign
+on the species-level through the
+[`addSpecies`](https://rdrr.io/bioc/dada2/man/addSpecies.html) method,
+which takes the above computed taxonomic table `taxa` and the reference
+FASTA file (`data/silva/silva_species_assignment_v138.fa.gz`).
 
 ``` r
 taxa = addSpecies(taxa, "data/silva/silva_species_assignment_v138.fa.gz")
@@ -769,6 +756,14 @@ head(taxa)
 | TACGGAAGGTCCAGGCGTTATCCGGATTTATTGGGTTTAAAGGGAGTGTAGGCGGTTGGTTAAGCGTGTTGTGAAATGTAGATGCTCAACATCTGACTTGCAGCGCGAACTGGCTGACTTGAGTACACACAACGTAGGCGGAATTCATGGTGTAGCGGTGAAATGCTTAGATATCATGAAGAACTCCGATTGCGAAGGCAGCTTACGGGAGTGTTACTGACGCTTAAGCTCGAAGGTGCGGGTATCGAACAGG | Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | disiens  |
 | TACGTAAGGGGCGAGCGTTGTCCGGAATTATTGGGCGTAAAGAGTGCGTAGGCGGCAAATTAAGTCAGATGTGAAAACTAAGGGCTCAACCCATAGATTGCATCTGAAACTGATATGCTTGAGTCAAGGAGAGGAAAGTGGAATTCCTAGTGTAGCGGTGGAATGCGTAGATATTAGGAGGAATACCGGTGGCGAAGGCGACTTTCTGGACTTGAACTGACGCTGAGGCACGAAAGCGTGGGGAGCAAACAGG | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            | NA       |
 | TACGGAGGGTGCAAGCGTTACTCGGAATCACTGGGCGTAAAGGGTGCGTAGGTGGATTATCAAGTCTCTTGTGAAATCTAATAGCTTAACTATTAAATTGCTTGGGAAACTGATAGTCTAGAGTAGGGGAGAGGCAGATGGAACTCTTGGTGTAGGAGTAAAATCCGTAGATATCAAGAAGAATACCTATTGCGAAAGCGATCTGCTAGAACCTAACTGACACTGATGCACGAAAGCGTGGGGAGCAAACAGG | Bacteria | Campilobacterota | Campylobacteria | Campylobacterales                   | Campylobacteraceae | Campylobacter | hominis  |
+
+### Digest ASVs
+
+The following is only to convert the ASVs (the actual sequences) into a
+cryptographical hash using the [`digest`](https://rdrr.io/cran/digest/)
+method, which by default uses the [MD5
+message-digest](https://en.wikipedia.org/wiki/MD5) algorithm -*This is
+entirely an option step*
 
 ``` r
 md5 = lapply(colnames(seqtab.nochim), digest)
@@ -798,39 +793,7 @@ head(taxa)
 | 977091fc9d08b0b43c99857ca9976e72 | Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            | NA       |
 | e41846b638aa4b7eb2728408abf3700b | Bacteria | Campilobacterota | Campylobacteria | Campylobacterales                   | Campylobacteraceae | Campylobacter | hominis  |
 
-Let’s inspect the taxonomic assignments:
-
-``` r
-taxa.print = taxa # Removing sequence rownames for display only
-rownames(taxa.print) = NULL
-head(taxa.print)
-```
-
-| Kingdom  | Phylum           | Class           | Order                               | Family             | Genus         | Species  |
-|:---------|:-----------------|:----------------|:------------------------------------|:-------------------|:--------------|:---------|
-| Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | NA       |
-| Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | corporis |
-| Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Finegoldia         | NA            | NA       |
-| Bacteria | Bacteroidota     | Bacteroidia     | Bacteroidales                       | Prevotellaceae     | Prevotella    | disiens  |
-| Bacteria | Firmicutes       | Clostridia      | Peptostreptococcales-Tissierellales | Fenollaria         | NA            | NA       |
-| Bacteria | Campilobacterota | Campylobacteria | Campylobacterales                   | Campylobacteraceae | Campylobacter | hominis  |
-
-Unsurprisingly, the Bacteroidetes are well represented among the most
-abundant taxa in these fecal samples. Few species assignments were made,
-both because it is often not possible to make unambiguous species
-assignments from subsegments of the 16S gene, and because there is
-surprisingly little coverage of the indigenous mouse gut microbiota in
-reference databases.
-
-*Considerations for your own data:* If your reads do not seem to be
-appropriately assigned, for example lots of your bacterial 16S sequences
-are being assigned as `Eukaryota NA NA NA NA NA`, your reads may be in
-the opposite orientation as the reference database. Tell dada2 to try
-the reverse-complement orientation with
-`assignTaxonomy(..., tryRC=TRUE)` and see if this fixes the assignments.
-If using DECIPHER for taxonomy, try `IdTaxa (..., strand="both")`.
-
-# Handoff to phyloseq
+## Phyloseq
 
 The phyloseq R package is a powerful framework for further analysis of
 microbiome data. We now demonstrate how to straightforwardly import the
@@ -839,7 +802,7 @@ small amount of metadata we have – the samples are named by the gender
 (G), mouse subject number (X) and the day post-weaning (Y) it was
 sampled (eg. GXDY).
 
-## Import into phyloseq:
+### Import into phyloseq:
 
 We can construct a simple sample data.frame from the information encoded
 in the filenames. Usually this step would instead involve reading the
@@ -899,10 +862,10 @@ plot_richness(ps, x="status", measures=c("Shannon", "Simpson"), color = "pair")
     ## 
     ## We recommended that you find the un-trimmed data and retry.
 
-![](ALS_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
 
-No obvious systematic difference in alpha-diversity between early and
-late samples.
+There are some differences in alpha-diversity between early and late
+samples.
 
 ``` r
 ps_rank = transform_sample_counts(ps, threshrankfun(50))
@@ -910,58 +873,55 @@ ps_log = transform_sample_counts(ps, log)
 ps_norm = transform_sample_counts(ps, function(x) x / sum(x))
 ```
 
-Ordinate: Transform data to proportions as appropriate for Bray-Curtis
-distances
+### Ordinate:
+
+Transform data to proportions as appropriate for Bray-Curtis distances
 
 ``` r
 ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.2626593 
-    ## Run 2 stress 0.1889447 
-    ## Run 3 stress 0.1693983 
+    ## Run 1 stress 0.1679988 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1890089  max resid 0.6457535 
-    ## Run 4 stress 0.1834112 
-    ## Run 5 stress 0.1677133 
+    ## ... Procrustes: rmse 0.1811313  max resid 0.6578552 
+    ## Run 2 stress 0.1885589 
+    ## Run 3 stress 0.1766461 
+    ## Run 4 stress 0.1677132 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.06754542  max resid 0.1806388 
-    ## Run 6 stress 0.1693974 
-    ## Run 7 stress 0.1677132 
-    ## ... New best solution
-    ## ... Procrustes: rmse 0.0001367247  max resid 0.0004775398 
+    ## ... Procrustes: rmse 0.01850959  max resid 0.06081677 
+    ## Run 5 stress 0.1774542 
+    ## Run 6 stress 0.1677134 
+    ## ... Procrustes: rmse 0.0003931675  max resid 0.001382532 
     ## ... Similar to previous best
-    ## Run 8 stress 0.1677132 
-    ## ... Procrustes: rmse 0.0002202005  max resid 0.0007731691 
+    ## Run 7 stress 0.1693973 
+    ## Run 8 stress 0.1677135 
+    ## ... Procrustes: rmse 0.0003348949  max resid 0.001169776 
     ## ... Similar to previous best
-    ## Run 9 stress 0.1978798 
-    ## Run 10 stress 0.183413 
+    ## Run 9 stress 0.1807519 
+    ## Run 10 stress 0.1826301 
     ## Run 11 stress 0.1885589 
-    ## Run 12 stress 0.1679988 
-    ## ... Procrustes: rmse 0.01861325  max resid 0.06117419 
-    ## Run 13 stress 0.1834124 
-    ## Run 14 stress 0.1693584 
-    ## Run 15 stress 0.1677136 
-    ## ... Procrustes: rmse 0.0003720208  max resid 0.001303047 
-    ## ... Similar to previous best
-    ## Run 16 stress 0.1808859 
-    ## Run 17 stress 0.1693975 
-    ## Run 18 stress 0.1808856 
-    ## Run 19 stress 0.1882396 
-    ## Run 20 stress 0.1921666 
+    ## Run 12 stress 0.1828827 
+    ## Run 13 stress 0.1693584 
+    ## Run 14 stress 0.1693975 
+    ## Run 15 stress 0.1808856 
+    ## Run 16 stress 0.1867397 
+    ## Run 17 stress 0.1766461 
+    ## Run 18 stress 0.1826302 
+    ## Run 19 stress 0.1754069 
+    ## Run 20 stress 0.1892393 
     ## *** Solution reached
 
 ``` r
 plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_point(size = 3)
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
 
 Ordination picks out a clear separation between the early and late
 samples.
 
-## Bar plot
+### Bar plot
 
 ``` r
 ps
@@ -987,13 +947,7 @@ ps_filtered
 plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
-
-``` r
-plot_bar(ps_norm, x="status", fill="Phylum")
-```
-
-![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
 
 Normalize number of reads in each sample using median sequencing depth.
 
@@ -1017,4 +971,4 @@ ps.top20 = prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="status", fill="Phylum")
 ```
 
-![](ALS_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->

@@ -267,7 +267,7 @@ n2 = ncol(seqtab.nochim)
 
 `r m2` $\times$ `r n2`, so  `r n1 - n2` bimeras were identified and removed. Thus, the remaining (non-chimeric) ASVs (overall; not only the unique) after the removal the bimeras is `r scales::percent(sum(seqtab.nochim)/sum(seqtab))`
 
-## Track reads through the pipeline
+### Track reads through the pipeline
 
 As a final check of our progress, we’ll look at the number of reads that made it through each step in the pipeline:
 
@@ -282,30 +282,33 @@ head(track)
 
 Looks good! We kept the majority of our raw reads, and there is no over-large drop associated with any single step.
 
-*Considerations for your own data:* This is a great place to do a last **sanity check**. Outside of filtering, there should no step in which a majority of reads are lost. If a majority of reads failed to merge, you may need to revisit the `truncLen` parameter used in the filtering step and make sure that the truncated reads span your amplicon. If a majority of reads were removed as chimeric, you may need to revisit the removal of primers, as the ambiguous nucleotides in unremoved primers interfere with chimera identification.
+## Taxonomic Classification
 
-# Taxonomic Classification
+### Assign Taxonomy
 
-## Assign taxonomy
-
-It is common at this point, especially in 16S/18S/ITS amplicon sequencing, to assign taxonomy to the sequence variants. The DADA2 package provides a native implementation of the [naive Bayesian classifier method](http://www.ncbi.nlm.nih.gov/pubmed/17586664) for this purpose. The `assignTaxonomy` function takes as input a set of sequences to be classified and a training set of reference sequences with known taxonomy, and outputs taxonomic assignments with at least `minBoot` bootstrap confidence.
-
-We maintain [formatted training fastas for the RDP training set, GreenGenes clustered at 97% identity, and the Silva reference database](https://benjjneb.github.io/dada2/training.html), and additional trainings fastas suitable for protists and certain specific environments have been contributed. For fungal taxonomy, the General Fasta release files from the [UNITE ITS database](https://unite.ut.ee/repository.php) can be used as is. To follow along, download the `silva_nr_v138_train_set.fa.gz` file, and place it in the directory with the fastq files.
+Using the [Naïve Bayesian Classifier](http://www.ncbi.nlm.nih.gov/pubmed/17586664) algorithm, **DADA2** assigns taxonomic classification to the sequence variants with the [`assignTaxonomy`](https://rdrr.io/bioc/dada2/man/assignTaxonomy.html) method, which takes also as input the reference formatted FASTA sequence. A copy of the SILVA train set is located under the `data/silva` subfolder, which can also be downloaded from here <a href="https://doi.org/10.5281/zenodo.3986799"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.3986799.svg" alt="DOI"></a>
 
 
 ```{r}
-taxa = assignTaxonomy(seqtab.nochim, "data/silva/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
+taxa = assignTaxonomy(seqtab.nochim,
+                      "data/silva/silva_nr99_v138_train_set.fa.gz", 
+                      multithread = TRUE,
+                      verbose = TRUE)
 head(taxa)
 ```
 
-*Extensions*: The dada2 package also implements a method to make [species level assignments based on exact matching](https://benjjneb.github.io/dada2/assign.html#species-assignment) between ASVs and sequenced reference strains. Recent analysis suggests that [exact matching (or 100% identity) is the only appropriate way to assign species to 16S gene fragments](https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/bty113/4913809). Currently, [species-assignment training fastas are available for the Silva and RDP 16S databases](https://benjjneb.github.io/dada2/training.html). To follow the optional species addition step, download the `silva_species_assignment_v138.fa.gz` file, and place it in the directory with the fastq files.
+### Assign Species 
+
+In additional to above taxonomic classification, *DADA2* can also assign on the species-level through the [`addSpecies`](https://rdrr.io/bioc/dada2/man/addSpecies.html) method, which takes the above computed taxonomic table `taxa` and the reference FASTA file (`data/silva/silva_species_assignment_v138.fa.gz`).
 
 ```{r}
 taxa = addSpecies(taxa, "data/silva/silva_species_assignment_v138.fa.gz")
 head(taxa)
 ```
 
+### Digest ASVs
 
+The following is only to convert the ASVs (the actual sequences) into a cryptographical hash using the [`digest`](https://rdrr.io/cran/digest/) method, which by default uses the [MD5 message-digest](https://en.wikipedia.org/wiki/MD5) algorithm -*This is entirely an option step*
 
 ```{r}
 md5 = lapply(colnames(seqtab.nochim), digest)
@@ -323,25 +326,11 @@ rownames(taxa) = lapply(rownames(taxa), digest)
 head(taxa)
 ```
 
-
-
-Let’s inspect the taxonomic assignments:
-
-```{r}
-taxa.print = taxa # Removing sequence rownames for display only
-rownames(taxa.print) = NULL
-head(taxa.print)
-```
-
-Unsurprisingly, the Bacteroidetes are well represented among the most abundant taxa in these fecal samples. Few species assignments were made, both because it is often not possible to make unambiguous species assignments from subsegments of the 16S gene, and because there is surprisingly little coverage of the indigenous mouse gut microbiota in reference databases.
-
-*Considerations for your own data:* If your reads do not seem to be appropriately assigned, for example lots of your bacterial 16S sequences are being assigned as `Eukaryota NA NA NA NA NA`, your reads may be in the opposite orientation as the reference database. Tell dada2 to try the reverse-complement orientation with `assignTaxonomy(..., tryRC=TRUE)` and see if this fixes the assignments. If using DECIPHER for taxonomy, try `IdTaxa (..., strand="both")`.
-
-# Handoff to phyloseq
+## Phyloseq
 
 The phyloseq R package is a powerful framework for further analysis of microbiome data. We now demonstrate how to straightforwardly import the tables produced by the DADA2 pipeline into phyloseq. We’ll also add the small amount of metadata we have – the samples are named by the gender (G), mouse subject number (X) and the day post-weaning (Y) it was sampled (eg. GXDY).
 
-## Import into phyloseq:
+### Import into phyloseq:
 We can construct a simple sample data.frame from the information encoded in the filenames. Usually this step would instead involve reading the sample data in from a file.
 
 ```{r}
@@ -365,7 +354,7 @@ Visualize alpha-diversity:
 plot_richness(ps, x="status", measures=c("Shannon", "Simpson"), color = "pair")
 ```
 
-No obvious systematic difference in alpha-diversity between early and late samples.
+There are some differences in alpha-diversity between early and late samples.
 
 
 ```{r}
@@ -375,8 +364,10 @@ ps_norm = transform_sample_counts(ps, function(x) x / sum(x))
 ```
 
 
-Ordinate:
+### Ordinate:
+
 Transform data to proportions as appropriate for Bray-Curtis distances
+
 ```{r}
 ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_point(size = 3)
@@ -384,7 +375,7 @@ plot_ordination(ps, ord.nmds.bray, color="status", title="Bray NMDS") + geom_poi
 
 Ordination picks out a clear separation between the early and late samples.
 
-## Bar plot
+### Bar plot
 
 ```{r}
 ps
@@ -395,11 +386,6 @@ ps_filtered
 
 ```{r}
 plot_bar(ps_filtered, x="status", fill="Phylum") + geom_bar(aes(fill=Phylum), stat="identity", position="stack", color = "white")
-```
-
-
-```{r}
-plot_bar(ps_norm, x="status", fill="Phylum")
 ```
 
 Normalize number of reads in each sample using median sequencing depth.
