@@ -3,7 +3,7 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
 
 -   [Introduction](#introduction)
 -   [Setting up](#setting-up)
-    -   [Direcotry Structure](#direcotry-structure)
+    -   [Directory Structure](#direcotry-structure)
     -   [Installing and Loading
         Packages](#installing-and-loading-packages)
     -   [Loading Meta and Sequence
@@ -83,7 +83,7 @@ tutorial](https://benjjneb.github.io/dada2/tutorial.html).
 
 ## Setting up
 
-### Direcotry Structure
+### Directory Structure
 
 In the working directory, there is a file called `samples.tsv` with a
 list of the samples and the status (`ALS` vs `Control`) of each sample.
