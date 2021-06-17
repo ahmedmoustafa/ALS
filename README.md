@@ -1,10 +1,7 @@
 # Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
 
-<div align="center">
 ![Stephen Hawking](images/stephen_hawking.png)
-</div>
-
-<div align="right"><small>*Stephen Hawking*. Photo Credit: [NASA/Paul E. Alers](https://flic.kr/p/6h1t6B).</small></div>
+<small>*Stephen Hawking*. Photo Credit: [NASA/Paul E. Alers](https://flic.kr/p/6h1t6B).</small>
 
 Amyotrophic lateral sclerosis ([ALS](https://en.wikipedia.org/wiki/Amyotrophic_lateral_sclerosis)) is a neurodegenerative neuromuscular disease that results in the progressive loss of motor neurons that control voluntary muscles. About 20 genes are associated with ALS, most importantly [C9orf72](https://en.wikipedia.org/wiki/C9orf72), which accounts for about 40% of the cases. In addition to genetic risk, environmental factors such as smoking and physical activity represent potential risks. Among the environmental factors is the gut microbiota, which has been shown to contribute and affect mental health, leading to the emerging paradigm of the [gut-brain axis](https://en.wikipedia.org/wiki/Gut%E2%80%93brain_axis) ([GBA](https://en.wikipedia.org/wiki/Gut%E2%80%93brain_axis)). Therefore, [Hertzberg et al. 2021](https://pubmed.ncbi.nlm.nih.gov/33818222/) examined the gut microbiome profiles between ALS patients and their corresponding health caregivers using 16S rRNA.
 
