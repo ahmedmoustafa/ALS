@@ -26,6 +26,7 @@ Microbiome of Amyotrophic Lateral Sclerosis (ALS) using 16S rRNA
     -   [Import into phyloseq:](#import-into-phyloseq)
     -   [Ordinate:](#ordinate)
     -   [Bar plot](#bar-plot)
+-   [Session Info](#session-info)
 
 ## Setting up
 
@@ -834,45 +835,44 @@ ord.nmds.bray = ordinate(ps_norm, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.1867397 
-    ## Run 1 stress 0.1679987 
+    ## Run 1 stress 0.1978797 
+    ## Run 2 stress 0.1695197 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.1811999  max resid 0.6581086 
-    ## Run 2 stress 0.1677133 
+    ## ... Procrustes: rmse 0.1882398  max resid 0.6444576 
+    ## Run 3 stress 0.1677135 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.01855773  max resid 0.06100882 
-    ## Run 3 stress 0.1886017 
-    ## Run 4 stress 0.1693584 
-    ## Run 5 stress 0.1695206 
-    ## Run 6 stress 0.1693978 
-    ## Run 7 stress 0.1677133 
+    ## ... Procrustes: rmse 0.06752529  max resid 0.1821645 
+    ## Run 4 stress 0.1693977 
+    ## Run 5 stress 0.1865755 
+    ## Run 6 stress 0.1867397 
+    ## Run 7 stress 0.1808857 
+    ## Run 8 stress 0.1677134 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.0001941604  max resid 0.0006728458 
+    ## ... Procrustes: rmse 3.208964e-05  max resid 0.0001121116 
     ## ... Similar to previous best
-    ## Run 8 stress 0.1677135 
-    ## ... Procrustes: rmse 0.000618297  max resid 0.002171338 
-    ## ... Similar to previous best
-    ## Run 9 stress 0.1797132 
-    ## Run 10 stress 0.1693584 
-    ## Run 11 stress 0.1677134 
-    ## ... Procrustes: rmse 0.0001303441  max resid 0.000447294 
-    ## ... Similar to previous best
-    ## Run 12 stress 0.1677134 
-    ## ... Procrustes: rmse 0.0005710321  max resid 0.002005819 
-    ## ... Similar to previous best
-    ## Run 13 stress 0.1750409 
-    ## Run 14 stress 0.1834082 
-    ## Run 15 stress 0.1693975 
-    ## Run 16 stress 0.1863309 
-    ## Run 17 stress 0.1679987 
-    ## ... Procrustes: rmse 0.01859843  max resid 0.06112779 
-    ## Run 18 stress 0.1807519 
-    ## Run 19 stress 0.1677137 
-    ## ... Procrustes: rmse 0.0003557116  max resid 0.001242529 
-    ## ... Similar to previous best
-    ## Run 20 stress 0.1677132 
+    ## Run 9 stress 0.1677132 
     ## ... New best solution
-    ## ... Procrustes: rmse 0.0001318218  max resid 0.0004593724 
+    ## ... Procrustes: rmse 0.0002691525  max resid 0.0009414973 
     ## ... Similar to previous best
+    ## Run 10 stress 0.1766461 
+    ## Run 11 stress 0.1677133 
+    ## ... Procrustes: rmse 0.0001029658  max resid 0.0003578937 
+    ## ... Similar to previous best
+    ## Run 12 stress 0.183413 
+    ## Run 13 stress 0.1677133 
+    ## ... Procrustes: rmse 7.457289e-05  max resid 0.0002586777 
+    ## ... Similar to previous best
+    ## Run 14 stress 0.1693585 
+    ## Run 15 stress 0.1693585 
+    ## Run 16 stress 0.261521 
+    ## Run 17 stress 0.1677134 
+    ## ... Procrustes: rmse 0.0004003549  max resid 0.001402586 
+    ## ... Similar to previous best
+    ## Run 18 stress 0.1677134 
+    ## ... Procrustes: rmse 0.0002501921  max resid 0.0008759365 
+    ## ... Similar to previous best
+    ## Run 19 stress 0.1834109 
+    ## Run 20 stress 0.1867397 
     ## *** Solution reached
 
 ``` r
@@ -935,3 +935,99 @@ plot_bar(ps.top20, x="status", fill="Phylum")
 ```
 
 ![](ALS_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
+
+------------------------------------------------------------------------
+
+``` r
+toc()
+```
+
+    ## 335.38 sec elapsed
+
+------------------------------------------------------------------------
+
+## Session Info
+
+``` r
+sessionInfo()
+```
+
+    ## R version 4.1.0 (2021-05-18)
+    ## Platform: x86_64-pc-linux-gnu (64-bit)
+    ## Running under: Ubuntu 20.04.2 LTS
+    ## 
+    ## Matrix products: default
+    ## BLAS:   /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.9.0
+    ## LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.9.0
+    ## 
+    ## locale:
+    ##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+    ##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+    ##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+    ##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+    ##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+    ## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+    ## 
+    ## attached base packages:
+    ## [1] stats     graphics  grDevices utils     datasets  methods   base     
+    ## 
+    ## other attached packages:
+    ##  [1] digest_0.6.27   forcats_0.5.1   stringr_1.4.0   dplyr_1.0.6    
+    ##  [5] purrr_0.3.4     readr_1.4.0     tidyr_1.1.3     tibble_3.1.2   
+    ##  [9] ggplot2_3.3.4   tidyverse_1.3.1 phyloseq_1.36.0 dada2_1.20.0   
+    ## [13] Rcpp_1.0.6      tictoc_1.0.1    printr_0.1.1   
+    ## 
+    ## loaded via a namespace (and not attached):
+    ##   [1] colorspace_2.0-1            hwriter_1.3.2              
+    ##   [3] ellipsis_0.3.2              XVector_0.32.0             
+    ##   [5] GenomicRanges_1.44.0        fs_1.5.0                   
+    ##   [7] rstudioapi_0.13             farver_2.1.0               
+    ##   [9] fansi_0.5.0                 lubridate_1.7.10           
+    ##  [11] xml2_1.3.2                  codetools_0.2-18           
+    ##  [13] splines_4.1.0               knitr_1.33                 
+    ##  [15] ade4_1.7-16                 jsonlite_1.7.2             
+    ##  [17] Rsamtools_2.8.0             broom_0.7.7                
+    ##  [19] cluster_2.1.2               dbplyr_2.1.1               
+    ##  [21] png_0.1-7                   compiler_4.1.0             
+    ##  [23] httr_1.4.2                  backports_1.2.1            
+    ##  [25] assertthat_0.2.1            Matrix_1.3-4               
+    ##  [27] cli_2.5.0                   htmltools_0.5.1.1          
+    ##  [29] prettyunits_1.1.1           tools_4.1.0                
+    ##  [31] igraph_1.2.6                gtable_0.3.0               
+    ##  [33] glue_1.4.2                  GenomeInfoDbData_1.2.6     
+    ##  [35] reshape2_1.4.4              ShortRead_1.50.0           
+    ##  [37] Biobase_2.52.0              cellranger_1.1.0           
+    ##  [39] vctrs_0.3.8                 Biostrings_2.60.1          
+    ##  [41] rhdf5filters_1.4.0          multtest_2.48.0            
+    ##  [43] ape_5.5                     nlme_3.1-152               
+    ##  [45] iterators_1.0.13            xfun_0.24                  
+    ##  [47] rvest_1.0.0                 lifecycle_1.0.0            
+    ##  [49] zlibbioc_1.38.0             MASS_7.3-54                
+    ##  [51] scales_1.1.1                hms_1.1.0                  
+    ##  [53] MatrixGenerics_1.4.0        parallel_4.1.0             
+    ##  [55] SummarizedExperiment_1.22.0 biomformat_1.20.0          
+    ##  [57] rhdf5_2.36.0                RColorBrewer_1.1-2         
+    ##  [59] yaml_2.2.1                  latticeExtra_0.6-29        
+    ##  [61] stringi_1.6.2               highr_0.9                  
+    ##  [63] S4Vectors_0.30.0            foreach_1.5.1              
+    ##  [65] permute_0.9-5               BiocGenerics_0.38.0        
+    ##  [67] BiocParallel_1.26.0         GenomeInfoDb_1.28.0        
+    ##  [69] rlang_0.4.11                pkgconfig_2.0.3            
+    ##  [71] matrixStats_0.59.0          bitops_1.0-7               
+    ##  [73] evaluate_0.14               lattice_0.20-44            
+    ##  [75] Rhdf5lib_1.14.1             labeling_0.4.2             
+    ##  [77] GenomicAlignments_1.28.0    tidyselect_1.1.1           
+    ##  [79] plyr_1.8.6                  magrittr_2.0.1             
+    ##  [81] R6_2.5.0                    IRanges_2.26.0             
+    ##  [83] generics_0.1.0              DelayedArray_0.18.0        
+    ##  [85] DBI_1.1.1                   pillar_1.6.1               
+    ##  [87] haven_2.4.1                 withr_2.4.2                
+    ##  [89] mgcv_1.8-36                 survival_3.2-11            
+    ##  [91] RCurl_1.98-1.3              modelr_0.1.8               
+    ##  [93] crayon_1.4.1                utf8_1.2.1                 
+    ##  [95] rmarkdown_2.9               jpeg_0.1-8.1               
+    ##  [97] progress_1.2.2              grid_4.1.0                 
+    ##  [99] readxl_1.3.1                data.table_1.14.0          
+    ## [101] vegan_2.5-7                 reprex_2.0.0               
+    ## [103] RcppParallel_5.1.4          stats4_4.1.0               
+    ## [105] munsell_0.5.0
